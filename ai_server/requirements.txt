@@ -1,0 +1,14 @@
+flask
+flask-cors
+fastapi
+uvicorn[standard]
+torch
+torchvision
+torchaudio
+transformers
+soundfile
+numpy
+pydub
+python-multipart
+pillow
+llama-cpp-python
