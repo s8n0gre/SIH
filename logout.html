@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logout - Municipal Issue Reporting</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .logout-btn {
+            background: #ef4444;
+        }
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Session Manager</h1>
+        <p>Clear your session to return to login page</p>
+        <button class="logout-btn" onclick="logout()">Logout & Clear Session</button>
+        <button onclick="goHome()">Go to App</button>
+        <div id="status" style="margin-top: 20px; color: #059669;"></div>
+    </div>
+
+    <script>
+        function logout() {
+            localStorage.clear();
+            sessionStorage.clear();
+            document.getElementById('status').innerHTML = '✓ Session cleared! Redirecting to login...';
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
+        }
+
+        function goHome() {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>
