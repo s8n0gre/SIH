@@ -6,7 +6,7 @@ interface VoiceInputProps {
   placeholder?: string;
 }
 
-const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscription, placeholder = "Press and hold to speak in Hindi" }) => {
+const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscription, placeholder = "Hold to speak" }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Camera, MapPin, Send, Sparkles, Upload } from 'lucide-react';
 import { aiModelService } from '../services/aiModel';
+import VoiceInput from './VoiceInput';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -35,23 +36,23 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.coordinates.lat || !formData.coordinates.lng) {
       handleGetLocation();
       return;
     }
-    
+
     try {
       let finalCategory = formData.category;
       let finalDescription = formData.description;
-      
+
       // Use AI to predict category if "Let AI Decide" is selected
       if (formData.category === 'Let AI Decide') {
         const prediction = await aiModelService.predictCategory(formData.title, formData.description, formData.images);
         finalCategory = prediction.category;
         finalDescription = prediction.description || formData.description;
       }
-      
+
       // Prepare report data for API
       const reportData = {
         title: formData.title,
@@ -67,11 +68,11 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
           }
         }
       };
-      
+
       // Submit to API
       const { apiService } = await import('../services/api');
       await apiService.createReport(reportData);
-      
+
       // Also call the parent onSubmit for UI updates
       onSubmit({
         title: formData.title,
@@ -82,10 +83,10 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
         images: [],
         department: finalCategory
       });
-      
+
       resetForm();
       onClose();
-      
+
     } catch (error) {
       console.error('Report submission failed:', error);
       alert('Failed to submit report. Please try again.');
@@ -130,7 +131,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
     const fileArray = Array.from(files);
     const remainingSlots = 5 - formData.images.length;
     const filesToAdd = fileArray.slice(0, remainingSlots);
-    
+
     setFormData(prev => ({
       ...prev,
       images: [...prev.images, ...filesToAdd]
@@ -144,7 +145,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
 
   const handleAIAnalysis = async (imageFile?: File) => {
     if (!formData.title && !formData.description && !imageFile) return;
-    
+
     setIsAnalyzing(true);
     try {
       const prediction = await aiModelService.predictCategory(
@@ -152,7 +153,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
         formData.description,
         imageFile ? [imageFile] : formData.images
       );
-      
+
       setFormData(prev => ({
         ...prev,
         category: prediction.category,
@@ -197,13 +198,13 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
   };
 
   const resetForm = () => {
-    setFormData({ 
-      title: '', 
-      description: '', 
-      category: 'Let AI Decide', 
-      location: '', 
-      coordinates: { lat: 0, lng: 0 }, 
-      images: [] 
+    setFormData({
+      title: '',
+      description: '',
+      category: 'Let AI Decide',
+      location: '',
+      coordinates: { lat: 0, lng: 0 },
+      images: []
     });
     setIsAnalyzing(false);
     setIsDragging(false);
@@ -281,9 +282,21 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Description
+              </label>
+              <VoiceInput
+                onTranscription={(text, translation) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    description: prev.description
+                      ? `${prev.description}\n${translation || text}`
+                      : (translation || text)
+                  }));
+                }}
+              />
+            </div>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -323,10 +336,9 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Photos (Max 5)
             </label>
-            <div 
-              className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-                isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
-              } ${formData.images.length >= 5 ? 'opacity-50' : ''}`}
+            <div
+              className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                } ${formData.images.length >= 5 ? 'opacity-50' : ''}`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -349,7 +361,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, onSubmit }) 
                 className="hidden"
                 disabled={formData.images.length >= 5}
               />
-              
+
               <div className="flex flex-col items-center space-y-3">
                 <div className="flex space-x-4">
                   <button

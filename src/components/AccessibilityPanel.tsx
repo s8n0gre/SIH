@@ -51,14 +51,15 @@ const AccessibilityPanel: React.FC = () => {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 title="Accessibility Tools"
-                className={`flex flex-col items-center gap-0.5 p-2 rounded-lg transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700
-          ${isOpen ? 'text-orange-500' : 'text-gray-700 dark:text-gray-300'}`}
+                className={`p-2 rounded-lg border transition-colors duration-300 ${isOpen
+                        ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-orange-500'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                    }`}
             >
-                <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2}>
+                <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2}>
                     <circle cx="12" cy="4" r="1.5" fill="currentColor" stroke="none" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v5m0 0l-3 4m3-4l3 4M8 8l-2 2m10-2l2 2M9 15l-1 4m6-4l1 4" />
                 </svg>
-                <span className="text-[9px] font-medium">Access</span>
             </button>
 
             {/* Panel */}

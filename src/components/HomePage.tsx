@@ -11,6 +11,7 @@ import imgLotusTemple from '../assets/wallpapers/lotus_temple.jpg';
 
 interface HomePageProps {
   setActiveTab: (tab: string) => void;
+  onReport?: () => void;
 }
 
 interface Issue {
@@ -29,7 +30,7 @@ const SLIDES = [
   { src: imgLotusTemple, caption: 'Lotus Temple, Delhi' },
 ];
 
-const HomePage: React.FC<HomePageProps> = ({ setActiveTab }) => {
+const HomePage: React.FC<HomePageProps> = ({ setActiveTab, onReport }) => {
   const [stats, setStats] = useState([
     { label: 'Issues Reported', value: '0', icon: MapPin, color: 'text-blue-600' },
     { label: 'In Progress', value: '0', icon: Clock, color: 'text-yellow-600' },
@@ -125,7 +126,7 @@ const HomePage: React.FC<HomePageProps> = ({ setActiveTab }) => {
         <div className="mb-8 pt-4">
           <div className="flex items-center gap-2 mb-3">
             <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow">
-              🇮🇳 Bharat Nagarik Sewa
+              🇮🇳 LokSetu
             </span>
           </div>
           <h1 className="text-3xl md:text-5xl font-bold text-white drop-shadow-lg mb-3">
@@ -143,7 +144,7 @@ const HomePage: React.FC<HomePageProps> = ({ setActiveTab }) => {
           </div>
           <div className="flex flex-col sm:flex-row gap-4">
             <button
-              onClick={() => setActiveTab('report')}
+              onClick={() => onReport ? onReport() : setActiveTab('report')}
               className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-xl hover:scale-105"
             >
               Report an Issue
@@ -173,10 +174,9 @@ const HomePage: React.FC<HomePageProps> = ({ setActiveTab }) => {
             stats.map((stat, index) => {
               const IconComponent = stat.icon;
               return (
-                <button
+                <div
                   key={index}
-                  onClick={() => stat.label === 'Issues Reported' ? setActiveTab('feed') : setActiveTab('dashboard')}
-                  className="bg-white/15 backdrop-blur-md p-6 rounded-xl border border-white/30 hover:bg-white/25 transition-all duration-300 cursor-pointer hover:scale-105 text-left w-full shadow-lg"
+                  className="bg-white/15 backdrop-blur-md p-6 rounded-xl border border-white/30 shadow-lg"
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -187,7 +187,7 @@ const HomePage: React.FC<HomePageProps> = ({ setActiveTab }) => {
                       <IconComponent className="w-6 h-6 text-white" />
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })
           )}
@@ -231,10 +231,9 @@ const HomePage: React.FC<HomePageProps> = ({ setActiveTab }) => {
               ))
             ) : recentIssues.length > 0 ? (
               recentIssues.map((issue) => (
-                <button
+                <div
                   key={issue.id}
-                  onClick={() => setActiveTab('feed')}
-                  className="flex items-center justify-between p-4 border border-white/20 rounded-xl hover:bg-white/10 transition-all duration-200 cursor-pointer w-full text-left"
+                  className="flex items-center justify-between p-4 border border-white/20 rounded-xl"
                 >
                   <div className="flex-1">
                     <h3 className="font-semibold text-white">{issue.title}</h3>
@@ -249,7 +248,7 @@ const HomePage: React.FC<HomePageProps> = ({ setActiveTab }) => {
                       {issue.status}
                     </span>
                   </div>
-                </button>
+                </div>
               ))
             ) : (
               <div className="text-center py-8 text-white/50">

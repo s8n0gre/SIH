@@ -82,7 +82,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <div className="w-24 h-24 bg-gradient-to-br from-orange-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl">
             <span className="text-4xl">🏛️</span>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">Bharat Nagarik Sewa</h2>
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">LokSetu</h2>
           <p className="text-gray-600 text-lg max-w-sm">
             A digital platform for citizens to report and track municipal issues across India.
           </p>

@@ -9,6 +9,7 @@ import IntroPage from './components/IntroPage';
 import ConnectionStatus from './components/ConnectionStatus';
 import Helpline from './components/Helpline';
 import ProfilePage from './components/ProfilePage';
+import AdminDashboard from './components/AdminDashboard';
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
@@ -59,6 +60,7 @@ function App() {
 
   const currentUser = JSON.parse(localStorage.getItem('civicUser') || '{}');
   const currentUserId = currentUser.id || currentUser._id;
+  const userRole = localStorage.getItem('userRole') || currentUser.role || 'user';
   const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
 
   useEffect(() => {
@@ -217,10 +219,45 @@ function App() {
     );
   }
 
+  // Admin Route Protection
+  const isAdminRoute = currentHash.startsWith('#/admin');
+
+  if (isAdminRoute) {
+    if (userRole === 'sys_admin' || userRole === 'department_admin') {
+      return (
+        <ThemeProvider>
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+            {/* Minimal Header for Admin */}
+            <header className="bg-gradient-to-r from-orange-600 via-white to-green-600 dark:from-orange-700 dark:via-gray-800 dark:to-green-700 shadow-lg border-b-4 border-orange-500 dark:border-orange-600">
+              <div className="bg-white dark:bg-gray-800 bg-opacity-95 px-4 py-3 flex justify-between items-center">
+                <div className="flex items-center gap-2 text-gray-800 dark:text-white font-bold text-xl">
+                  Admin Control Panel
+                </div>
+                <button
+                  onClick={() => { window.location.hash = ''; }}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Back to App
+                </button>
+              </div>
+            </header>
+            <main>
+              <AdminDashboard />
+            </main>
+          </div>
+        </ThemeProvider>
+      );
+    } else {
+      // Redirect non-admins to home
+      window.location.hash = '';
+      return null;
+    }
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomePage setActiveTab={setActiveTab} />;
+        return <HomePage setActiveTab={setActiveTab} onReport={() => setShowReportModal(true)} />;
       case 'report':
         return <ReportIssue />;
       case 'feed':
@@ -228,7 +265,7 @@ function App() {
       case 'helpline':
         return <Helpline />;
       default:
-        return <HomePage setActiveTab={setActiveTab} />;
+        return <HomePage setActiveTab={setActiveTab} onReport={() => setShowReportModal(true)} />;
     }
   };
 
