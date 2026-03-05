@@ -22,9 +22,10 @@ interface ProfileDropdownProps {
   setUserRole: (role: string) => void;
   setShowElevateModal: (show: boolean) => void;
   onLogout: () => void;
+  setActiveTab: (tab: string) => void;
 }
 
-const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUserRole, setShowElevateModal, onLogout }) => {
+const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUserRole, setShowElevateModal, onLogout, setActiveTab }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showImpersonateModal, setShowImpersonateModal] = useState(false);
   const [impersonateUser, setImpersonateUser] = useState('');
@@ -120,11 +121,22 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
             <>
               <button
                 onClick={() => {
+                  setIsOpen(false);
+                  setActiveTab('admin');
+                }}
+                className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="text-sm font-medium">Admin Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => {
                   fetchUsers();
                   setShowImpersonateModal(true);
                   setIsOpen(false);
                 }}
-                className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-blue-600"
+                className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-blue-600"
               >
                 <UserCheck className="w-4 h-4" />
                 <span className="text-sm">Impersonate User</span>
@@ -142,6 +154,19 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
 
 
             </>
+          )}
+
+          {userRole !== 'sys_admin' && (
+            <button
+              onClick={() => {
+                setShowElevateModal(true);
+                setIsOpen(false);
+              }}
+              className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"
+            >
+              <Shield className="w-4 h-4" />
+              <span className="text-sm font-medium">Elevate Role</span>
+            </button>
           )}
 
           <div className="border-t border-gray-100 mt-2 pt-2">
@@ -611,6 +636,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, user, onLogout
                   setUserRole={setUserRole}
                   setShowElevateModal={setShowElevateModal}
                   onLogout={onLogout}
+                  setActiveTab={setActiveTab}
                 />
               )}
             </div>

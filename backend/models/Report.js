@@ -7,10 +7,35 @@ const reportSchema = new mongoose.Schema({
   description: { type: String, required: true }, // HTML
 
   // Categorisation
+  domain: { type: String }, // e.g. "Core Infrastructure Services"
   category: {
     type: String,
     required: true,
-    enum: ['Roads & Infrastructure', 'Water Services', 'Electricity', 'Waste Management', 'Parks & Recreation', 'Public Safety', 'Other']
+    enum: [
+      // Core Infrastructure Services
+      'Roads & Infrastructure',
+      'Water Services',
+      'Electricity Services',
+      // Sanitation and Environmental Services
+      'Waste Management',
+      // Transport and Urban Mobility
+      'Public Transport Operations',
+      'Parking Administration',
+      // Urban Planning and Asset Administration
+      'Estate and Land Management',
+      'Procurement and Stores',
+      'Mechanical and Workshop Services',
+      // Governance, Citizen Interface and Administration
+      'Public Grievance Redressal',
+      'Internal Audit',
+      // Social and Community Development
+      'Parks & Recreation',
+      'Gender and Child Development',
+      // Public Safety and Regulatory Enforcement
+      'Public Safety',
+      // Fallback
+      'Other'
+    ]
   },
   subCategory: { type: String },
 

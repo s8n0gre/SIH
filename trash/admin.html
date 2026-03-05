@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Municipal Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-2xl font-bold">Municipal Admin Panel</h1>
+                    <div class="flex items-center space-x-4">
+                        <span id="adminUser" class="text-blue-200">Admin User</span>
+                        <button onclick="logout()" class="bg-blue-700 px-4 py-2 rounded hover:bg-blue-800">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex space-x-8">
+                    <button onclick="showTab('dashboard')" class="tab-btn py-4 px-2 border-b-2 border-blue-500 text-blue-600 font-medium">Dashboard</button>
+                    <button onclick="showTab('map')" class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">Map</button>
+                    <button onclick="showTab('reports')" class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">Reports</button>
+                    <button onclick="showTab('users')" class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">Users</button>
+                    <button onclick="showTab('settings')" class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">Settings</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i data-lucide="file-text" class="w-6 h-6 text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Total Reports</p>
+                                <p id="totalReports" class="text-2xl font-bold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-lg">
+                                <i data-lucide="clock" class="w-6 h-6 text-yellow-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Pending</p>
+                                <p id="pendingReports" class="text-2xl font-bold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Resolved</p>
+                                <p id="resolvedReports" class="text-2xl font-bold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i data-lucide="users" class="w-6 h-6 text-purple-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Active Users</p>
+                                <p id="activeUsers" class="text-2xl font-bold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Recent Reports</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="recentReports" class="space-y-4">
+                            Loading reports...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Tab -->
+            <div id="map" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow mb-4">
+                    <div class="p-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <h3 class="text-lg font-semibold text-gray-900">Problem Map</h3>
+                            <div class="flex space-x-2 flex-wrap gap-2">
+                                <select id="mapStatusFilter" onchange="filterMapMarkers()" class="border border-gray-300 rounded px-3 py-2 text-sm">
+                                    <option value="">All Status</option>
+                                    <option value="open">Open</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="assigned">Assigned</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="resolved">Resolved</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                                <select id="mapCategoryFilter" onchange="filterMapMarkers()" class="border border-gray-300 rounded px-3 py-2 text-sm">
+                                    <option value="">All Categories</option>
+                                    <option value="pothole">Pothole</option>
+                                    <option value="streetlight">Street Light</option>
+                                    <option value="garbage">Garbage</option>
+                                    <option value="water">Water</option>
+                                    <option value="other">Other</option>
+                                </select>
+                                <button onclick="refreshMap()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">Refresh</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div id="mapContainer" style="height: 600px; width: 100%;"></div>
+                </div>
+                <div class="bg-white rounded-lg shadow mt-4 p-4">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-3">Map Legend</h4>
+                    <div class="flex flex-wrap gap-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 bg-red-500 rounded-full"></div>
+                            <span class="text-sm text-gray-700">Open/Pending</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 bg-yellow-500 rounded-full"></div>
+                            <span class="text-sm text-gray-700">Assigned</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 bg-orange-500 rounded-full"></div>
+                            <span class="text-sm text-gray-700">In Progress</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 bg-green-500 rounded-full"></div>
+                            <span class="text-sm text-gray-700">Resolved</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 bg-gray-500 rounded-full"></div>
+                            <span class="text-sm text-gray-700">Rejected</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">All Reports</h3>
+                            <div class="flex space-x-2">
+                                <select id="statusFilter" onchange="filterReports()" class="border border-gray-300 rounded px-3 py-2">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="resolved">Resolved</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                                <button onclick="refreshReports()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Refresh</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="allReports" class="space-y-4">
+                            Loading all reports...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Tab -->
+            <div id="users" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">User Management</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="usersList" class="space-y-4">
+                            Loading users...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">System Settings</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="space-y-6">
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-2">System Status</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="border rounded-lg p-4">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm text-gray-600">Backend API</span>
+                                            <span id="backendStatus" class="text-sm font-medium">Checking...</span>
+                                        </div>
+                                    </div>
+                                    <div class="border rounded-lg p-4">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm text-gray-600">AI Vision</span>
+                                            <span id="aiStatus" class="text-sm font-medium">Checking...</span>
+                                        </div>
+                                    </div>
+                                    <div class="border rounded-lg p-4">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm text-gray-600">Speech Recognition</span>
+                                            <span id="speechStatus" class="text-sm font-medium">Checking...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-2">Quick Actions</h4>
+                                <div class="flex space-x-4">
+                                    <button onclick="exportData()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Export Data</button>
+                                    <button onclick="clearCache()" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">Clear Cache</button>
+                                    <button onclick="backupDatabase()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">Backup Database</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Tab management
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Remove active state from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.remove('hidden');
+            
+            // Add active state to clicked button
+            event.target.classList.remove('border-transparent', 'text-gray-500');
+            event.target.classList.add('border-blue-500', 'text-blue-600');
+            
+            // Load tab-specific data
+            if (tabName === 'dashboard') loadDashboard();
+            if (tabName === 'map') initializeMap();
+            if (tabName === 'reports') loadAllReports();
+            if (tabName === 'users') loadUsers();
+            if (tabName === 'settings') checkSystemStatus();
+        }
+
+        // API calls
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`http://localhost:5000${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                return null;
+            }
+        }
+
+        // Load dashboard data
+        async function loadDashboard() {
+            const stats = await apiCall('/api/stats/global');
+            const reports = await apiCall('/api/reports');
+            
+            if (stats) {
+                document.getElementById('totalReports').textContent = stats.totalReports || 0;
+                document.getElementById('pendingReports').textContent = stats.pending || 0;
+                document.getElementById('resolvedReports').textContent = stats.completed || 0;
+                document.getElementById('activeUsers').textContent = stats.activeUsers || 0;
+            }
+            
+            if (reports) {
+                const recentReports = reports.slice(0, 5);
+                document.getElementById('recentReports').innerHTML = recentReports.map(report => `
+                    <div class="border-l-4 border-blue-500 pl-4 py-2">
+                        <h4 class="font-medium text-gray-900">${report.title}</h4>
+                        <p class="text-sm text-gray-600">${report.description}</p>
+                        <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                            <span>Status: ${report.status}</span>
+                            <span>Category: ${report.category}</span>
+                            <span>Created: ${new Date(report.createdAt).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Load all reports
+        async function loadAllReports() {
+            const reports = await apiCall('/api/reports');
+            if (reports) {
+                document.getElementById('allReports').innerHTML = reports.map(report => `
+                    <div class="border rounded-lg p-4">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-900">${report.title}</h4>
+                                <p class="text-sm text-gray-600 mt-1">${report.description}</p>
+                                <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                                    <span>Category: ${report.category}</span>
+                                    <span>Created: ${new Date(report.createdAt).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                            <div class="ml-4 flex items-center space-x-2">
+                                <select onchange="updateReportStatus('${report._id}', this.value)" class="text-sm border rounded px-2 py-1">
+                                    <option value="pending" ${report.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="in-progress" ${report.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                                    <option value="resolved" ${report.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                                    <option value="rejected" ${report.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Load users
+        async function loadUsers() {
+            const users = await apiCall('/api/users');
+            if (users) {
+                document.getElementById('usersList').innerHTML = users.map(user => `
+                    <div class="border rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium text-gray-900">${user.username}</h4>
+                                <p class="text-sm text-gray-600">${user.email}</p>
+                                <p class="text-xs text-gray-500">Role: ${user.role} | Department: ${user.department || 'N/A'}</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <select onchange="updateUserRole('${user._id}', this.value)" class="text-sm border rounded px-2 py-1">
+                                    <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+                                    <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                                    <option value="sys_admin" ${user.role === 'sys_admin' ? 'selected' : ''}>System Admin</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Update report status
+        async function updateReportStatus(reportId, status) {
+            const result = await apiCall(`/api/reports/${reportId}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status })
+            });
+            if (result) {
+                alert('Report status updated successfully');
+                loadAllReports();
+            }
+        }
+
+        // Update user role
+        async function updateUserRole(userId, role) {
+            const result = await apiCall(`/api/users/${userId}/role`, {
+                method: 'PUT',
+                body: JSON.stringify({ role })
+            });
+            if (result) {
+                alert('User role updated successfully');
+                loadUsers();
+            }
+        }
+
+        // Filter reports
+        function filterReports() {
+            // Implementation for filtering reports
+            loadAllReports();
+        }
+
+        // Refresh reports
+        function refreshReports() {
+            loadAllReports();
+        }
+
+        // Check system status
+        async function checkSystemStatus() {
+            // Check backend
+            try {
+                const backendHealth = await fetch('http://localhost:5000/health');
+                document.getElementById('backendStatus').textContent = backendHealth.ok ? '✅ Online' : '❌ Offline';
+                document.getElementById('backendStatus').className = backendHealth.ok ? 'text-sm font-medium text-green-600' : 'text-sm font-medium text-red-600';
+            } catch {
+                document.getElementById('backendStatus').textContent = '❌ Offline';
+                document.getElementById('backendStatus').className = 'text-sm font-medium text-red-600';
+            }
+
+            // Check AI Vision
+            try {
+                const aiHealth = await fetch('http://localhost:5007/health');
+                document.getElementById('aiStatus').textContent = aiHealth.ok ? '✅ Online' : '❌ Offline';
+                document.getElementById('aiStatus').className = aiHealth.ok ? 'text-sm font-medium text-green-600' : 'text-sm font-medium text-red-600';
+            } catch {
+                document.getElementById('aiStatus').textContent = '❌ Offline';
+                document.getElementById('aiStatus').className = 'text-sm font-medium text-red-600';
+            }
+
+            // Check Speech Recognition
+            try {
+                const speechHealth = await fetch('http://localhost:8000/health');
+                document.getElementById('speechStatus').textContent = speechHealth.ok ? '✅ Online' : '❌ Offline';
+                document.getElementById('speechStatus').className = speechHealth.ok ? 'text-sm font-medium text-green-600' : 'text-sm font-medium text-red-600';
+            } catch {
+                document.getElementById('speechStatus').textContent = '❌ Offline';
+                document.getElementById('speechStatus').className = 'text-sm font-medium text-red-600';
+            }
+        }
+
+        // Utility functions
+        function exportData() {
+            alert('Export functionality would be implemented here');
+        }
+
+        function clearCache() {
+            alert('Cache cleared successfully');
+        }
+
+        function backupDatabase() {
+            alert('Database backup initiated');
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('civicUser');
+            localStorage.removeItem('currentUser');
+            window.location.href = '/';
+        }
+
+        // Map functionality
+        let map = null;
+        let markers = [];
+        let allReportsData = [];
+
+        function initializeMap() {
+            if (!map) {
+                map = L.map('mapContainer').setView([23.6102, 85.2799], 8);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                // Test marker at Ranchi
+                const testIcon = L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                });
+                L.marker([23.3441, 85.3096], { icon: testIcon })
+                    .addTo(map)
+                    .bindPopup('Test Marker - Ranchi');
+            }
+            setTimeout(() => map.invalidateSize(), 100);
+            loadMapData();
+        }
+
+        async function loadMapData() {
+            try {
+                const response = await apiCall('/api/reports');
+                console.log('Raw API response:', response);
+                
+                // Handle different response formats
+                let reports = [];
+                if (Array.isArray(response)) {
+                    reports = response;
+                } else if (response && response.reports && Array.isArray(response.reports)) {
+                    reports = response.reports;
+                } else if (response && response.data && Array.isArray(response.data)) {
+                    reports = response.data;
+                } else if (response && typeof response === 'object') {
+                    // Try to convert object to array
+                    reports = Object.values(response);
+                }
+                
+                console.log('Processed reports array:', reports);
+                console.log('Number of reports:', reports.length);
+                
+                if (reports.length > 0) {
+                    console.log('First report:', JSON.stringify(reports[0], null, 2));
+                    
+                    allReportsData = reports.filter(r => {
+                        const hasCoords = (r.location?.coordinates?.latitude && r.location?.coordinates?.longitude) ||
+                                        (r.location?.latitude && r.location?.longitude) ||
+                                        (r.latitude && r.longitude);
+                        if (!hasCoords) {
+                            console.log('Report missing coordinates:', r._id, r.title);
+                        }
+                        return hasCoords;
+                    });
+                    
+                    console.log('Reports with valid coordinates:', allReportsData.length);
+                    if (allReportsData.length > 0) {
+                        displayMarkers(allReportsData);
+                        // Center map on first report
+                        const first = allReportsData[0];
+                        const lat = first.location?.coordinates?.latitude || first.location?.latitude || first.latitude;
+                        const lng = first.location?.coordinates?.longitude || first.location?.longitude || first.longitude;
+                        map.setView([lat, lng], 12);
+                    }
+                } else {
+                    console.log('No reports found in database');
+                }
+            } catch (error) {
+                console.error('Error loading map data:', error);
+            }
+        }
+
+        function displayMarkers(reports) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            const statusColors = {
+                open: '#EF4444',
+                pending: '#EF4444',
+                assigned: '#EAB308',
+                in_progress: '#F97316',
+                resolved: '#10B981',
+                completed: '#10B981',
+                rejected: '#6B7280'
+            };
+
+            reports.forEach(report => {
+                let lat, lng;
+                
+                if (report.location?.coordinates?.latitude && report.location?.coordinates?.longitude) {
+                    lat = report.location.coordinates.latitude;
+                    lng = report.location.coordinates.longitude;
+                } else if (report.location?.latitude && report.location?.longitude) {
+                    lat = report.location.latitude;
+                    lng = report.location.longitude;
+                } else if (report.latitude && report.longitude) {
+                    lat = report.latitude;
+                    lng = report.longitude;
+                } else {
+                    return;
+                }
+                
+                const normalizedStatus = report.status?.toLowerCase().replace(/-/g, '_').replace(/\s+/g, '_');
+                const color = statusColors[normalizedStatus] || '#3B82F6';
+                
+                const pinIcon = L.divIcon({
+                    className: 'custom-pin-icon',
+                    html: `<svg width="32" height="42" viewBox="0 0 32 42" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 0C7.163 0 0 7.163 0 16c0 12 16 26 16 26s16-14 16-26c0-8.837-7.163-16-16-16z" 
+                          fill="${color}" stroke="#fff" stroke-width="2"/>
+                        <circle cx="16" cy="16" r="6" fill="#fff"/>
+                      </svg>`,
+                    iconSize: [32, 42],
+                    iconAnchor: [16, 42],
+                    popupAnchor: [0, -42]
+                });
+                
+                const marker = L.marker([lat, lng], { icon: pinIcon }).addTo(map);
+
+                marker.bindPopup(`
+                    <div style="min-width: 200px;">
+                        <h4 style="font-weight: bold; margin-bottom: 8px;">${report.title}</h4>
+                        <p style="font-size: 14px; margin-bottom: 4px;">${report.description}</p>
+                        <p style="font-size: 12px; color: #666;"><strong>Status:</strong> ${report.status}</p>
+                        <p style="font-size: 12px; color: #666;"><strong>Category:</strong> ${report.category}</p>
+                        <p style="font-size: 12px; color: #666;"><strong>Date:</strong> ${new Date(report.createdAt).toLocaleDateString()}</p>
+                    </div>
+                `);
+
+                markers.push(marker);
+            });
+        }
+
+        function filterMapMarkers() {
+            const statusFilter = document.getElementById('mapStatusFilter').value;
+            const categoryFilter = document.getElementById('mapCategoryFilter').value;
+
+            const filtered = allReportsData.filter(report => {
+                const normalizedStatus = report.status?.toLowerCase().replace(/-/g, '_').replace(/\s+/g, '_');
+                const matchStatus = !statusFilter || normalizedStatus === statusFilter || report.status === statusFilter;
+                const matchCategory = !categoryFilter || report.category === categoryFilter;
+                return matchStatus && matchCategory;
+            });
+
+            displayMarkers(filtered);
+        }
+
+        function refreshMap() {
+            document.getElementById('mapStatusFilter').value = '';
+            document.getElementById('mapCategoryFilter').value = '';
+            loadMapData();
+        }
+
+        // Check authentication
+        function checkAuth() {
+            const user = JSON.parse(localStorage.getItem('civicUser') || 'null');
+            if (!user || (user.role !== 'department_admin' && user.role !== 'system_admin')) {
+                window.location.href = '/admin-login.html';
+                return false;
+            }
+            document.getElementById('adminUser').textContent = user.username;
+            return true;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (checkAuth()) {
+                loadDashboard();
+            }
+        });
+    </script>
+</body>
+</html>

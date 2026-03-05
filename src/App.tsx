@@ -264,6 +264,8 @@ function App() {
         return <CommunityFeed />;
       case 'helpline':
         return <Helpline />;
+      case 'admin':
+        return <AdminDashboard />;
       default:
         return <HomePage setActiveTab={setActiveTab} onReport={() => setShowReportModal(true)} />;
     }

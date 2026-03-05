@@ -1,0 +1,66 @@
+# Municipal Issue Reporting API Test File
+# Use with REST Client extension in VS Code or any HTTP client
+
+### Health Check
+GET http://localhost:5000/health
+
+### Get All Reports
+GET http://localhost:5000/api/reports
+
+### Get Reports with Filter
+GET http://localhost:5000/api/reports?status=pending
+
+### Create New Report
+POST http://localhost:5000/api/reports
+Content-Type: application/json
+
+{
+  "title": "Broken Street Light",
+  "description": "Street light not working on Main Road",
+  "category": "Electricity",
+  "location": {
+    "address": "Main Road, Ranchi",
+    "latitude": 23.3441,
+    "longitude": 85.3096
+  }
+}
+
+### Update Report Status
+PUT http://localhost:5000/api/reports/REPORT_ID_HERE/status
+Content-Type: application/json
+
+{
+  "status": "in-progress"
+}
+
+### Get All Users
+GET http://localhost:5000/api/users
+
+### Get Global Stats
+GET http://localhost:5000/api/stats/global
+
+### Register New User
+POST http://localhost:5000/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "password123",
+  "role": "citizen"
+}
+
+### Login User
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### AI Vision Health Check
+GET http://localhost:5007/health
+
+### Speech Recognition Health Check
+GET http://localhost:8000/health

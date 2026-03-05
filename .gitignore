@@ -3,3 +3,11 @@ dist/
 venv/
 .env
 nemo_extracted/
+
+# AI Models & Python Cache
+*.gguf
+*.bin
+*.pt
+*.pth
+*.safetensors
+__pycache__/

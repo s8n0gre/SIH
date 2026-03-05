@@ -1,3 +1,5 @@
+import { inferCategoryFromText } from '../data/municipalityData';
+
 interface CategoryPrediction {
   category: string;
   confidence: number;
@@ -9,102 +11,26 @@ class AIModelService {
   private vitServerHealthy = false;
 
   async predictCategory(title: string, description: string, images?: File[]): Promise<CategoryPrediction> {
-    const text = `${title} ${description}`.toLowerCase();
-    
     // If images are provided, use MiniCPM analysis
     if (images && images.length > 0) {
-      const miniCpmResult = await this.analyzeWithMiniCPM(images[0]);
-      return miniCpmResult;
+      return await this.analyzeWithMiniCPM(images[0]);
     }
-    
-    // Roads & Infrastructure
-    if (this.matchesKeywords(text, ['pothole', 'road', 'street', 'pavement', 'crack', 'asphalt', 'highway', 'bridge'])) {
-      return { 
-        category: 'Roads & Infrastructure', 
-        confidence: 0.95, 
-        detectedIssues: ['Road Issue'],
-        description: 'Road or infrastructure related problem detected'
-      };
-    }
-    
-    // Water Services
-    if (this.matchesKeywords(text, ['water', 'leak', 'pipe', 'drain', 'sewer', 'flooding', 'tap', 'supply'])) {
-      return { 
-        category: 'Water Services', 
-        confidence: 0.95, 
-        detectedIssues: ['Water Issue'],
-        description: 'Water system related problem detected'
-      };
-    }
-    
-    // Electricity
-    if (this.matchesKeywords(text, ['light', 'electric', 'power', 'lamp', 'bulb', 'pole', 'wire', 'outage'])) {
-      return { 
-        category: 'Electricity', 
-        confidence: 0.95, 
-        detectedIssues: ['Electrical Issue'],
-        description: 'Electrical system related problem detected'
-      };
-    }
-    
-    // Waste Management
-    if (this.matchesKeywords(text, ['trash', 'garbage', 'waste', 'bin', 'litter', 'dump', 'rubbish', 'clean'])) {
-      return { 
-        category: 'Waste Management', 
-        confidence: 0.95, 
-        detectedIssues: ['Waste Issue'],
-        description: 'Waste management related problem detected'
-      };
-    }
-    
-    // Parks & Recreation
-    if (this.matchesKeywords(text, ['park', 'tree', 'garden', 'playground', 'bench', 'grass', 'plant', 'recreation'])) {
-      return { 
-        category: 'Parks & Recreation', 
-        confidence: 0.95, 
-        detectedIssues: ['Park Issue'],
-        description: 'Parks and recreation related problem detected'
-      };
-    }
-    
-    // Public Safety
-    if (this.matchesKeywords(text, ['safety', 'danger', 'crime', 'security', 'accident', 'hazard', 'emergency', 'broken'])) {
-      return { 
-        category: 'Public Safety', 
-        confidence: 0.95, 
-        detectedIssues: ['Safety Issue'],
-        description: 'Public safety related problem detected'
-      };
-    }
-    
-    // Default fallback - never return 'Other'
-    return { 
-      category: 'Roads & Infrastructure', 
-      confidence: 0.7, 
-      detectedIssues: ['General infrastructure issue'],
-      description: 'General civic issue detected - defaulting to Roads & Infrastructure. Please verify the category and provide specific details about the municipal problem.'
+
+    const text = `${title} ${description}`;
+    const category = inferCategoryFromText(text);
+    return {
+      category,
+      confidence: 0.95,
+      detectedIssues: [`${category} issue`],
+      description: `${category} related problem detected`,
     };
   }
 
-  private matchesKeywords(text: string, keywords: string[]): boolean {
-    return keywords.some(keyword => text.includes(keyword));
-  }
 
   async predictFromImage(imageFile: File): Promise<CategoryPrediction> {
     return await this.analyzeWithMiniCPM(imageFile);
   }
 
-  private async checkGeminiServerHealth(): Promise<boolean> {
-    try {
-      const response = await fetch('http://localhost:5004/health', {
-        method: 'GET',
-        timeout: 5000
-      } as any);
-      return response.ok;
-    } catch (error) {
-      return false;
-    }
-  }
 
   private async checkMiniCPMServerHealth(): Promise<boolean> {
     try {
@@ -142,7 +68,7 @@ class AIModelService {
       if (!response.ok) throw new Error(`MiniCPM server error: ${response.status}`);
 
       const result = await response.json();
-      
+
       if (result.success && result.analysis) {
         const analysis = result.analysis;
         const category = this.categorizeFromDescription(analysis.description);
@@ -155,7 +81,7 @@ class AIModelService {
       }
 
       return this.analyzeImageOffline(imageFile);
-      
+
     } catch (error) {
       return this.analyzeImageOffline(imageFile);
     }
@@ -176,45 +102,17 @@ class AIModelService {
   }
 
   private categorizeFromDescription(description: string): string {
-    const text = description.toLowerCase();
-    if (text.includes('road') || text.includes('street') || text.includes('pothole') || text.includes('pavement')) {
-      return 'Roads & Infrastructure';
-    }
-    if (text.includes('water') || text.includes('leak') || text.includes('pipe') || text.includes('drain')) {
-      return 'Water Services';
-    }
-    if (text.includes('light') || text.includes('electric') || text.includes('power') || text.includes('lamp')) {
-      return 'Electricity';
-    }
-    if (text.includes('trash') || text.includes('garbage') || text.includes('waste') || text.includes('litter')) {
-      return 'Waste Management';
-    }
-    if (text.includes('tree') || text.includes('park') || text.includes('garden') || text.includes('playground')) {
-      return 'Parks & Recreation';
-    }
-    if (text.includes('danger') || text.includes('safety') || text.includes('hazard') || text.includes('broken')) {
-      return 'Public Safety';
-    }
-    return 'Roads & Infrastructure';
+    return inferCategoryFromText(description);
   }
 
   private analyzeImageOffline(imageFile: File): CategoryPrediction {
     const fileName = imageFile.name.toLowerCase();
-    
-    if (fileName.includes('road') || fileName.includes('street') || fileName.includes('pothole')) {
-      return {
-        category: 'Roads & Infrastructure',
-        confidence: 0.85,
-        detectedIssues: ['Road infrastructure detected from filename'],
-        description: 'MiniCPM AI vision analysis detected municipal infrastructure issue requiring Roads Department attention.'
-      };
-    }
-    
+    const category = inferCategoryFromText(fileName);
     return {
-      category: 'Roads & Infrastructure',
+      category,
       confidence: 0.85,
-      detectedIssues: ['Municipal infrastructure issue'],
-      description: 'MiniCPM AI vision analysis detected municipal infrastructure issue requiring Roads Department attention.'
+      detectedIssues: [`${category} issue detected`],
+      description: `MiniCPM AI vision analysis detected a ${category} issue.`,
     };
   }
 

@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
-import { TrendingUp, AlertCircle, CheckCircle, Clock, Filter, Download, User, MapPin, Calendar, Map } from 'lucide-react';
+import { TrendingUp, AlertCircle, CheckCircle, Clock, Filter, Download, User, MapPin, Calendar, Map, GitBranch, Shield, Wrench, Lock, BarChart2, GitMerge } from 'lucide-react';
 import MapComponent from './MapComponent';
 import { useUserLocation } from '../hooks/useUserLocation';
+import RoutingRuleEngine from './RoutingRuleEngine';
+import TriageQueue from './TriageQueue';
+import RBACManager from './RBACManager';
+import WorkOrderManager from './WorkOrderManager';
+import AuditLog from './AuditLog';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 interface DepartmentData {
   department: string;
@@ -34,7 +40,8 @@ const AdminDashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'bar' | 'pie'>('bar');
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'reports' | 'map'>('analytics');
+  type AdminTab = 'analytics' | 'reports' | 'map' | 'routing' | 'triage' | 'rbac' | 'work-orders' | 'audit';
+  const [activeTab, setActiveTab] = useState<AdminTab>('analytics');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
@@ -284,36 +291,30 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'analytics'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              Analytics
-            </button>
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'reports'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              Report Management
-            </button>
-            <button
-              onClick={() => setActiveTab('map')}
-              className={`px-6 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${activeTab === 'map'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              <Map className="w-4 h-4" />
-              Map View
-            </button>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-8 overflow-x-auto">
+          <div className="flex border-b border-gray-200 min-w-max">
+            {[
+              { id: 'analytics', label: 'Analytics & SLA', icon: <BarChart2 className="w-4 h-4" /> },
+              { id: 'reports', label: 'Reports', icon: <AlertCircle className="w-4 h-4" /> },
+              { id: 'triage', label: 'Triage Queue', icon: <GitMerge className="w-4 h-4" /> },
+              { id: 'work-orders', label: 'Work Orders', icon: <Wrench className="w-4 h-4" /> },
+              { id: 'routing', label: 'Routing Rules', icon: <GitBranch className="w-4 h-4" /> },
+              { id: 'rbac', label: 'RBAC', icon: <Shield className="w-4 h-4" /> },
+              { id: 'audit', label: 'Audit Log', icon: <Lock className="w-4 h-4" /> },
+              { id: 'map', label: 'Map View', icon: <Map className="w-4 h-4" /> },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as AdminTab)}
+                className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -338,99 +339,29 @@ const AdminDashboard: React.FC = () => {
             />
           </div>
         ) : activeTab === 'analytics' ? (
-          <>
-            {/* Chart Section */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100">
-              <h2 className="text-xl font-semibold mb-6 text-gray-900">Issues Distribution</h2>
-
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  {viewMode === 'bar' ? (
-                    <BarChart data={issuesData} margin={{ top: 40, right: 30, left: 20, bottom: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis
-                        dataKey="department"
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                        fontSize={12}
-                        stroke="#666"
-                      />
-                      <YAxis stroke="#666" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                        }}
-                      />
-                      <Bar
-                        dataKey="count"
-                        radius={[4, 4, 0, 0]}
-                        onClick={(data) => setSelectedDepartment(data.department)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {issuesData.map((entry, index) => {
-                          const emergencyLevel = entry.count > avgIssuesPerDept ? 'high' : entry.count > avgIssuesPerDept * 0.7 ? 'medium' : 'low';
-                          const fillColor = emergencyLevel === 'high' ? '#EF4444' : emergencyLevel === 'medium' ? '#F59E0B' : '#10B981';
-                          return <Cell key={`cell-${index}`} fill={fillColor} />;
-                        })}
-                        <LabelList
-                          dataKey="count"
-                          position="top"
-                          style={{
-                            fill: '#374151',
-                            fontSize: '14px',
-                            fontWeight: 'bold'
-                          }}
-                        />
-                      </Bar>
-                    </BarChart>
-                  ) : (
-                    <PieChart>
-                      <Pie
-                        data={issuesData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={120}
-                        fill="#8884d8"
-                        dataKey="count"
-                        label={({ department, count }) => `${department}: ${count}`}
-                      >
-                        {issuesData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  )}
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Emergency Legend */}
-            <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-              <h3 className="text-lg font-semibold mb-3 text-gray-900">Emergency Level Guide</h3>
-              <div className="flex flex-wrap gap-4 justify-center">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-gray-700">High Priority</span>
-                  <span className="text-xs text-gray-500">({Math.floor(avgIssuesPerDept)}+ issues)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-gray-700">Medium Priority</span>
-                  <span className="text-xs text-gray-500">({Math.floor(avgIssuesPerDept * 0.7)}-{Math.floor(avgIssuesPerDept)} issues)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-gray-700">Low Priority</span>
-                  <span className="text-xs text-gray-500">(&lt;{Math.floor(avgIssuesPerDept * 0.7)} issues)</span>
-                </div>
-              </div>
-            </div>
-          </>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <AnalyticsDashboard />
+          </div>
+        ) : activeTab === 'triage' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <TriageQueue />
+          </div>
+        ) : activeTab === 'work-orders' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <WorkOrderManager />
+          </div>
+        ) : activeTab === 'routing' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <RoutingRuleEngine />
+          </div>
+        ) : activeTab === 'rbac' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <RBACManager />
+          </div>
+        ) : activeTab === 'audit' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <AuditLog />
+          </div>
         ) : (
           /* Report Management */
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">

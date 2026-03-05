@@ -1,0 +1,91 @@
+Domain,Category,Subcategory
+Core Infrastructure Services,Roads & Infrastructure,Potholes and surface degradation
+Core Infrastructure Services,Roads & Infrastructure,Road markings and signage
+Core Infrastructure Services,Roads & Infrastructure,Traffic signals and control devices
+Core Infrastructure Services,Roads & Infrastructure,Street lighting infrastructure
+Core Infrastructure Services,Roads & Infrastructure,Sidewalks and pedestrian pathways
+Core Infrastructure Services,Roads & Infrastructure,Bridges and overpasses
+Core Infrastructure Services,Roads & Infrastructure,Drainage and stormwater channels
+Core Infrastructure Services,Roads & Infrastructure,Construction zone management
+Core Infrastructure Services,Roads & Infrastructure,Obstructions and debris on roadway
+Core Infrastructure Services,Roads & Infrastructure,Accessibility compliance
+Core Infrastructure Services,Water Services,Water supply interruptions
+Core Infrastructure Services,Water Services,Water pressure irregularities
+Core Infrastructure Services,Water Services,Water quality concerns
+Core Infrastructure Services,Water Services,Water main leaks and bursts
+Core Infrastructure Services,Water Services,Hydrant maintenance
+Core Infrastructure Services,Water Services,Sewer blockages
+Core Infrastructure Services,Water Services,Sewer overflows
+Core Infrastructure Services,Water Services,Stormwater flooding
+Core Infrastructure Services,Water Services,Manhole cover damage
+Core Infrastructure Services,Water Services,Backflow incidents
+Core Infrastructure Services,Electricity Services,Power outages
+Core Infrastructure Services,Electricity Services,Voltage fluctuations
+Core Infrastructure Services,Electricity Services,Damaged power lines
+Core Infrastructure Services,Electricity Services,Streetlight electrical faults
+Core Infrastructure Services,Electricity Services,Transformer failures
+Core Infrastructure Services,Electricity Services,Exposed electrical infrastructure
+Core Infrastructure Services,Electricity Services,Illegal connections
+Core Infrastructure Services,Electricity Services,Meter faults
+Core Infrastructure Services,Electricity Services,Underground cable faults
+Core Infrastructure Services,Electricity Services,Substation issues
+Sanitation and Environmental Services,Waste Management,Missed waste collection
+Sanitation and Environmental Services,Waste Management,Overflowing public bins
+Sanitation and Environmental Services,Waste Management,Illegal dumping
+Sanitation and Environmental Services,Waste Management,Hazardous waste disposal
+Sanitation and Environmental Services,Waste Management,Recycling service issues
+Sanitation and Environmental Services,Waste Management,Bulk waste removal
+Sanitation and Environmental Services,Waste Management,Dead animal removal
+Sanitation and Environmental Services,Waste Management,Construction debris
+Sanitation and Environmental Services,Waste Management,Graffiti and litter
+Sanitation and Environmental Services,Waste Management,Medical waste disposal
+Transport and Urban Mobility,Public Transport Operations,Public bus operations
+Transport and Urban Mobility,Public Transport Operations,Para-transit regulation
+Transport and Urban Mobility,Public Transport Operations,Traffic circulation planning
+Transport and Urban Mobility,Public Transport Operations,Non-motorized transport infrastructure
+Transport and Urban Mobility,Public Transport Operations,Transit shelters and terminals
+Transport and Urban Mobility,Public Transport Operations,Smart mobility systems
+Transport and Urban Mobility,Parking Administration,On-street parking control
+Transport and Urban Mobility,Parking Administration,Off-street parking facilities
+Transport and Urban Mobility,Parking Administration,Fee collection systems
+Transport and Urban Mobility,Parking Administration,Illegal parking enforcement
+Transport and Urban Mobility,Parking Administration,Residential parking permits
+Urban Planning and Asset Administration,Estate and Land Management,Municipal property inventory
+Urban Planning and Asset Administration,Estate and Land Management,Lease management
+Urban Planning and Asset Administration,Estate and Land Management,Land acquisition
+Urban Planning and Asset Administration,Estate and Land Management,Asset disposal
+Urban Planning and Asset Administration,Estate and Land Management,Property mutation
+Urban Planning and Asset Administration,Procurement and Stores,Tendering and bidding
+Urban Planning and Asset Administration,Procurement and Stores,Vendor registration
+Urban Planning and Asset Administration,Procurement and Stores,Inventory control
+Urban Planning and Asset Administration,Procurement and Stores,Contract management
+Urban Planning and Asset Administration,Procurement and Stores,Rate contract administration
+Urban Planning and Asset Administration,Mechanical and Workshop Services,Vehicle maintenance
+Urban Planning and Asset Administration,Mechanical and Workshop Services,Equipment repair
+Urban Planning and Asset Administration,Mechanical and Workshop Services,Fleet management
+Urban Planning and Asset Administration,Mechanical and Workshop Services,Fuel monitoring
+Urban Planning and Asset Administration,Mechanical and Workshop Services,Workshop operations
+"Governance, Citizen Interface and Administration",Public Grievance Redressal,Complaint registration
+"Governance, Citizen Interface and Administration",Public Grievance Redressal,Escalation management
+"Governance, Citizen Interface and Administration",Public Grievance Redressal,Service tracking
+"Governance, Citizen Interface and Administration",Public Grievance Redressal,Appeal review
+"Governance, Citizen Interface and Administration",Public Grievance Redressal,Citizen feedback analysis
+"Governance, Citizen Interface and Administration",Internal Audit,Financial audit
+"Governance, Citizen Interface and Administration",Internal Audit,Compliance audit
+"Governance, Citizen Interface and Administration",Internal Audit,Performance audit
+"Governance, Citizen Interface and Administration",Internal Audit,Risk assessment
+"Governance, Citizen Interface and Administration",Internal Audit,Fraud investigation
+Social and Community Development,Parks & Recreation,Playground equipment damage
+Social and Community Development,Parks & Recreation,Park lighting faults
+Social and Community Development,Parks & Recreation,Irrigation system failure
+Social and Community Development,Parks & Recreation,Sports facility maintenance
+Social and Community Development,Parks & Recreation,Vandalism
+Social and Community Development,Parks & Recreation,Public restroom maintenance
+Social and Community Development,Parks & Recreation,Trail and pathway hazards
+Social and Community Development,Parks & Recreation,Tree hazards
+Social and Community Development,Gender and Child Development,Women safety initiatives
+Social and Community Development,Gender and Child Development,Child protection programs
+Social and Community Development,Gender and Child Development,Support centres
+Social and Community Development,Gender and Child Development,Awareness campaigns
+Social and Community Development,Gender and Child Development,Nutritional support
+Public Safety and Regulatory Enforcement,Public Safety,Encroachment or unauthorized use

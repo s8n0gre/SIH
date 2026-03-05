@@ -3,11 +3,17 @@ import { Camera, MapPin, Upload, Send, AlertCircle, Brain, X, Video } from 'luci
 import { aiModelService } from '../services/aiModel';
 import VoiceInput from './VoiceInput';
 import MapComponent from './MapComponent';
+import {
+  MUNICIPALITY_HIERARCHY,
+  CATEGORY_TO_DOMAIN,
+  getSubcategoriesForCategory,
+} from '../data/municipalityData';
 
 const ReportIssue: React.FC = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    domain: '',
     category: '',
     subCategory: '',
     urgency: 'medium',
@@ -30,15 +36,6 @@ const ReportIssue: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const categories = [
-    'Roads & Infrastructure',
-    'Water Services',
-    'Electricity',
-    'Waste Management',
-    'Parks & Recreation',
-    'Public Safety',
-    'Other'
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +100,7 @@ const ReportIssue: React.FC = () => {
       const reportData = {
         title: formData.title,
         description: finalDescription,
+        domain: formData.domain || CATEGORY_TO_DOMAIN[finalCategory] || finalCategory,
         category: finalCategory,
         subCategory: formData.subCategory || undefined,
         departmentId: (aiPrediction as any)?.department || finalCategory,
@@ -132,7 +130,7 @@ const ReportIssue: React.FC = () => {
 
       // Reset form after 2 seconds
       setTimeout(() => {
-        setFormData({ title: '', description: '', category: '', subCategory: '', urgency: 'medium', location: '', images: [], isAnonymous: false });
+        setFormData({ title: '', description: '', domain: '', category: '', subCategory: '', urgency: 'medium', location: '', images: [], isAnonymous: false });
         setAiPrediction(null);
         setDetectedIssues([]);
         setIsSubmitted(false);
@@ -383,6 +381,9 @@ const ReportIssue: React.FC = () => {
     }
   };
 
+  // Subcategory options driven by selected category
+  const subcategoryOptions = getSubcategoriesForCategory(formData.category);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -413,16 +414,67 @@ const ReportIssue: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Category (Optional - AI will detect)
               </label>
+
+              {/* Icon-driven quick category buttons (top 7 most-reported) */}
+              <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 mb-3">
+                {[
+                  { id: 'Roads & Infrastructure', icon: '🛣️', label: 'Roads' },
+                  { id: 'Water Services', icon: '💧', label: 'Water' },
+                  { id: 'Electricity Services', icon: '⚡', label: 'Electric' },
+                  { id: 'Waste Management', icon: '🗑️', label: 'Waste' },
+                  { id: 'Parks & Recreation', icon: '🌳', label: 'Parks' },
+                  { id: 'Public Safety', icon: '🚨', label: 'Safety' },
+                  { id: 'Other', icon: '📋', label: 'Other' },
+                ].map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      category: prev.category === cat.id ? '' : cat.id,
+                      domain: cat.id === 'Other' ? '' : (CATEGORY_TO_DOMAIN[cat.id] || ''),
+                      subCategory: '',
+                    }))}
+                    className={`flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all duration-150 text-center ${formData.category === cat.id
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-blue-300 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                      }`}
+                  >
+                    <span className="text-xl mb-0.5">{cat.icon}</span>
+                    <span className="text-[10px] font-medium leading-tight">{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Full category dropdown */}
               <select
                 value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => {
+                  const cat = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    category: cat,
+                    domain: CATEGORY_TO_DOMAIN[cat] || '',
+                    subCategory: ''
+                  }));
+                }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               >
                 <option value="">Let AI detect automatically</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
+                {MUNICIPALITY_HIERARCHY.map(entry => (
+                  <optgroup key={entry.domain} label={entry.domain}>
+                    <option value={entry.category}>{entry.category}</option>
+                  </optgroup>
                 ))}
+                <option value="Other">Other</option>
               </select>
+
+              {/* Domain badge — auto-set from selected category */}
+              {formData.domain && (
+                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  📁 Domain: <span className="font-medium text-gray-700 dark:text-gray-300">{formData.domain}</span>
+                </p>
+              )}
             </div>
 
             {/* Sub-Category */}
@@ -430,13 +482,26 @@ const ReportIssue: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Sub-Category <span className="text-gray-400 font-normal">(optional)</span>
               </label>
-              <input
-                type="text"
-                value={formData.subCategory}
-                onChange={(e) => setFormData(prev => ({ ...prev, subCategory: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="e.g. Pothole, Water Leakage, Streetlight"
-              />
+              {subcategoryOptions.length > 0 ? (
+                <select
+                  value={formData.subCategory}
+                  onChange={(e) => setFormData(prev => ({ ...prev, subCategory: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Select a sub-category...</option>
+                  {subcategoryOptions.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={formData.subCategory}
+                  onChange={(e) => setFormData(prev => ({ ...prev, subCategory: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  placeholder="e.g. Pothole, Water Leakage, Streetlight"
+                />
+              )}
             </div>
 
             {/* Urgency */}

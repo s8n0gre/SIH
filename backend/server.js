@@ -312,20 +312,26 @@ app.post('/api/reports', optionalAuth, async (req, res) => {
     const aiRecommendation = req.body.aiRecommendation || ai.description || null;
     const aiModelVersion = req.body.aiModelVersion || null;
 
-    // Department routing
+    // Department routing — maps legacy/AI department names to CSV category names
     const departmentMapping = {
       'Roads Department': 'Roads & Infrastructure',
       'Water Department': 'Water Services',
-      'Electricity Department': 'Electricity',
+      'Electricity Department': 'Electricity Services',
+      'Electricity': 'Electricity Services',  // legacy name normalisation
       'Waste Department': 'Waste Management',
       'Parks Department': 'Parks & Recreation',
       'Safety Department': 'Public Safety',
       'Infrastructure Failure Department': 'Roads & Infrastructure',
-      'Utility Failure Department': 'Electricity',
+      'Utility Failure Department': 'Electricity Services',
       'Water System Failure Department': 'Water Services',
       'Fire Hazard Department': 'Public Safety',
       'Flood/Water Hazard Department': 'Water Services',
-      'Environmental Contamination Department': 'Public Safety'
+      'Environmental Contamination Department': 'Public Safety',
+      'Transport Department': 'Public Transport Operations',
+      'Parking Department': 'Parking Administration',
+      'Land Department': 'Estate and Land Management',
+      'Grievance Department': 'Public Grievance Redressal',
+      'Parks & Recreation': 'Parks & Recreation',
     };
 
     let departmentId = req.body.departmentId || req.body.department || req.body.category;
@@ -334,6 +340,7 @@ app.post('/api/reports', optionalAuth, async (req, res) => {
     const reportData = {
       title: req.body.title,
       description: req.body.description,
+      domain: req.body.domain || null,
       category: req.body.category,
       subCategory: req.body.subCategory || null,
       departmentId,
