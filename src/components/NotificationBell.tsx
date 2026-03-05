@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, UserPlus, MessageCircle, Info } from 'lucide-react';
+import { Bell, UserPlus, MessageCircle, Info } from 'lucide-react';
 import { API_BASE } from '../config';
 
 interface Notification {
@@ -107,7 +107,7 @@ const NotificationBell: React.FC = () => {
             case 'friend_accepted':
                 return <UserPlus className="w-5 h-5 text-blue-500" />;
             case 'like':
-                return <Heart className="w-5 h-5 text-red-500 fill-current" />;
+                return <Bell className="w-5 h-5 text-red-500" />;
             case 'comment':
                 return <MessageCircle className="w-5 h-5 text-green-500" />;
             case 'message':
@@ -181,12 +181,15 @@ const NotificationBell: React.FC = () => {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                className={`relative p-2 rounded-lg border transition-colors duration-300 ${isOpen
+                        ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-orange-500'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                    }`}
                 title="Notifications"
             >
-                <Heart className={`w-6 h-6 ${isOpen ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`} />
+                <Bell className="w-5 h-5 flex-shrink-0" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white dark:ring-gray-800">
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white dark:ring-gray-800">
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}
@@ -219,7 +222,7 @@ const NotificationBell: React.FC = () => {
                     <div className="max-h-[400px] overflow-y-auto">
                         {notifications.length === 0 ? (
                             <div className="p-8 text-center flex flex-col items-center justify-center text-gray-400">
-                                <Heart className="w-12 h-12 mb-3 text-gray-200 dark:text-gray-700" />
+                                <Bell className="w-12 h-12 mb-3 text-gray-200 dark:text-gray-700" />
                                 <p>No notifications yet</p>
                             </div>
                         ) : (

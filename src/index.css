@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Accessibility Classes ===== */
+body.high-contrast {
+  filter: contrast(1.5) brightness(0.9);
+}
+
+body.letter-spacing * {
+  letter-spacing: 0.12em !important;
+}
+
+body.line-height-large * {
+  line-height: 2 !important;
+}
+
+body.hide-images img {
+  visibility: hidden !important;
+}
+
+body.big-cursor,
+body.big-cursor * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M5 5 L5 30 L12 22 L18 35 L22 33 L16 20 L26 20 Z' fill='black' stroke='white' stroke-width='2'/%3E%3C/svg%3E") 5 5, auto !important;
+}
+
 /* Mobile responsive base styles */
 * {
   box-sizing: border-box;
@@ -18,36 +40,41 @@ body {
   .container {
     padding: 0.5rem;
   }
-  
+
   .text-responsive {
     font-size: 0.875rem;
   }
-  
+
   .btn-mobile {
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
   }
-  
+
   .modal-mobile {
     margin: 0.5rem;
     max-height: 90vh;
     overflow-y: auto;
   }
-  
+
   .form-mobile input,
   .form-mobile textarea,
   .form-mobile select {
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px;
+    /* Prevents zoom on iOS */
   }
 }
 
 /* ── Material Black Dark Mode ───────────────────────────────────────── */
 /* Ensures pure black (0,0,0) backgrounds app-wide when dark mode is on */
 .dark {
-  --color-bg-base:    #000000;   /* page background   */
-  --color-bg-panel:   #0a0a0a;   /* cards / panels    */
-  --color-bg-raised:  #141414;   /* hover / raised    */
-  --color-bg-subtle:  #1e1e1e;   /* dividers / inputs */
+  --color-bg-base: #000000;
+  /* page background   */
+  --color-bg-panel: #0a0a0a;
+  /* cards / panels    */
+  --color-bg-raised: #141414;
+  /* hover / raised    */
+  --color-bg-subtle: #1e1e1e;
+  /* dividers / inputs */
 }
 
 .dark body,
@@ -58,6 +85,39 @@ body {
 /* Ensure any element using bg-gray-900/800/700 in dark mode
    is already handled by Tailwind config above, but force
    any inline or non-Tailwind bg overrides to be true black */
-.dark [class*="bg-gray-900"] { background-color: #000000 !important; }
-.dark [class*="bg-gray-800"] { background-color: #0a0a0a !important; }
-.dark [class*="bg-gray-700"] { background-color: #141414 !important; }
+.dark [class*="bg-gray-900"] {
+  background-color: #000000 !important;
+}
+
+.dark [class*="bg-gray-800"] {
+  background-color: #0a0a0a !important;
+}
+
+.dark [class*="bg-gray-700"] {
+  background-color: #141414 !important;
+}
+
+/* Slideshow 2-second crossfade */
+.transition-opacity.duration-2000 {
+  transition-property: opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 2000ms;
+}
+
+/* When home tab is active — make root fully transparent so wallpaper shows */
+body.home-bg {
+  background: transparent !important;
+}
+
+body.home-bg #root>div {
+  background: transparent !important;
+}
+
+.dark body.home-bg,
+.dark body.home-bg #root {
+  background-color: transparent !important;
+}
+
+.dark body.home-bg [class*="bg-gray-900"] {
+  background-color: transparent !important;
+}

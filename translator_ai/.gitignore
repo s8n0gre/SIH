@@ -1,0 +1,16 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Large model files
+*.nemo
+*.ckpt
+*.pt
+*.bin
+nemo_extracted/
+
+# Environment
+.env

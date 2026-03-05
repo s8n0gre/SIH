@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Municipal Reports</string>
+    <string name="title_activity_main">Municipal Reports</string>
+    <string name="package_name">com.municipal.reports</string>
+    <string name="custom_url_scheme">com.municipal.reports</string>
+</resources>

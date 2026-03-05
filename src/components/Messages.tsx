@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, MessageCircle, User, Search, Plus, X } from 'lucide-react';
+import { Send, MessageCircle, Search, Plus, X } from 'lucide-react';
 import { API_BASE } from '../config';
 
 const API = API_BASE;
@@ -30,7 +30,6 @@ interface Message {
 }
 
 // Bot chat lives in localStorage only — never hits the server
-const BOT_ID = 'bot_support';
 
 const Messages: React.FC = () => {
   const currentUser = JSON.parse(localStorage.getItem('civicUser') || '{}');
@@ -49,20 +48,6 @@ const Messages: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Bot conversation (localStorage only) ─────────────────────────────────
-  const [botMessages, setBotMessages] = useState<any[]>(() => {
-    const saved = localStorage.getItem(`bot_msgs_${currentUserId}`);
-    return saved ? JSON.parse(saved) : [{
-      _id: 'bot_init',
-      senderId: BOT_ID,
-      content: "Hi! I'm the CrowdSource Support Bot. How can I help you today?",
-      createdAt: new Date().toISOString(),
-      read: true
-    }];
-  });
-
-  const BOT_CONV_ID = `bot_${currentUserId}`;
-  const isBotConv = selectedConvId === BOT_CONV_ID;
 
   // ── Load data ─────────────────────────────────────────────────────────────
   const loadConversations = useCallback(async () => {
@@ -89,7 +74,6 @@ const Messages: React.FC = () => {
 
   // ── Fetch messages for selected conversation ──────────────────────────────
   const fetchMessages = useCallback(async (convId: string, since?: string) => {
-    if (convId === BOT_CONV_ID) return;
     try {
       const url = since
         ? `${API}/api/chat/messages/${convId}?since=${encodeURIComponent(since)}`
@@ -107,7 +91,8 @@ const Messages: React.FC = () => {
       }
       if (data.length > 0) setLastPollTime(data[data.length - 1].createdAt);
     } catch { /* offline */ }
-  }, [BOT_CONV_ID]);
+  }, []);
+
 
   useEffect(() => {
     if (!selectedConvId) return;
@@ -119,55 +104,28 @@ const Messages: React.FC = () => {
       c._id === selectedConvId ? { ...c, unread: 0 } : c
     ));
 
-    if (!isBotConv) {
-      fetchMessages(selectedConvId);
+    fetchMessages(selectedConvId);
+    pollRef.current = setInterval(() => {
+      setLastPollTime(prev => {
+        if (prev) fetchMessages(selectedConvId, prev);
+        return prev;
+      });
+      loadConversations();
+    }, 3000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [selectedConvId, fetchMessages, loadConversations]);
 
-      // Poll every 3s for new messages
-      pollRef.current = setInterval(() => {
-        setLastPollTime(prev => {
-          if (prev) fetchMessages(selectedConvId, prev);
-          return prev;
-        });
-        loadConversations(); // refresh unread counts
-      }, 3000);
-    }
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [selectedConvId, isBotConv, fetchMessages, loadConversations]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, botMessages, selectedConvId]);
+  }, [messages, selectedConvId]);
+
 
   // ── Send message ──────────────────────────────────────────────────────────
   const handleSend = async () => {
     if (!input.trim() || !selectedConvId) return;
     const text = input.trim();
     setInput('');
-
-    if (isBotConv) {
-      // Bot reply (localStorage)
-      const userMsg = { _id: Date.now().toString(), senderId: currentUserId, content: text, createdAt: new Date().toISOString(), read: true };
-      const newMsgs = [...botMessages, userMsg];
-      setBotMessages(newMsgs);
-      localStorage.setItem(`bot_msgs_${currentUserId}`, JSON.stringify(newMsgs));
-
-      setTimeout(() => {
-        const botReply = {
-          _id: (Date.now() + 1).toString(),
-          senderId: BOT_ID,
-          content: getRandomBotResponse(),
-          createdAt: new Date().toISOString(),
-          read: false
-        };
-        const finalMsgs = [...newMsgs, botReply];
-        setBotMessages(finalMsgs);
-        localStorage.setItem(`bot_msgs_${currentUserId}`, JSON.stringify(finalMsgs));
-      }, 1200);
-      return;
-    }
 
     setSending(true);
     try {
@@ -215,20 +173,8 @@ const Messages: React.FC = () => {
     } catch { /* offline */ }
   };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   const getOtherParticipant = (conv: Conversation) =>
     conv.participants.find(p => p._id !== currentUserId);
-
-  const getRandomBotResponse = () => {
-    const r = [
-      "Thanks for reaching out! How can I assist you further?",
-      "I understand. Let me look into that for you.",
-      "Your concern has been noted. Is there anything else I can help with?",
-      "Please raise a report using the red Report button if this is an urgent issue.",
-      "I appreciate you contacting CrowdSource Support!",
-    ];
-    return r[Math.floor(Math.random() * r.length)];
-  };
 
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -238,19 +184,9 @@ const Messages: React.FC = () => {
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // ── Bot pseudo-conversation object ────────────────────────────────────────
-  const botConv = {
-    _id: BOT_CONV_ID,
-    name: 'CrowdSource Support',
-    avatar: '🤖',
-    lastMessage: botMessages[botMessages.length - 1]?.content || '',
-    unread: botMessages.filter(m => m.senderId === BOT_ID && !m.read).length
-  };
-
-  // ── Active message list ───────────────────────────────────────────────────
-  const activeMessages = isBotConv ? botMessages : messages;
   const selectedConv = conversations.find(c => c._id === selectedConvId);
   const otherUser = selectedConv ? getOtherParticipant(selectedConv) : null;
+
 
   return (
     <div className="flex h-full bg-white dark:bg-gray-900">
@@ -284,23 +220,6 @@ const Messages: React.FC = () => {
 
         {/* Conversation list */}
         <div className="flex-1 overflow-y-auto">
-          {/* Bot always first */}
-          <div
-            onClick={() => setSelectedConvId(BOT_CONV_ID)}
-            className={`p-3 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${selectedConvId === BOT_CONV_ID ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
-          >
-            <div className="flex items-center gap-2">
-              <div className="text-2xl flex-shrink-0">🤖</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white truncate">CrowdSource Support</span>
-                  {botConv.unread > 0 && <span className="bg-indigo-500 text-white text-xs rounded-full px-1.5 py-0.5">{botConv.unread}</span>}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{botConv.lastMessage}</p>
-              </div>
-            </div>
-          </div>
-
           {loading ? (
             <div className="p-4 text-center text-sm text-gray-400">Loading…</div>
           ) : conversations.length === 0 ? (
@@ -341,33 +260,25 @@ const Messages: React.FC = () => {
             {/* Chat header */}
             <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
               <div className="flex items-center gap-2">
-                {isBotConv ? (
-                  <div className="text-2xl">🤖</div>
-                ) : (
-                  <div className="w-9 h-9 bg-indigo-100 dark:bg-indigo-800 rounded-full flex items-center justify-center text-sm font-bold text-indigo-600 flex-shrink-0">
-                    {otherUser?.username?.charAt(0).toUpperCase() || '?'}
-                  </div>
-                )}
+                <div className="w-9 h-9 bg-indigo-100 dark:bg-indigo-800 rounded-full flex items-center justify-center text-sm font-bold text-indigo-600 flex-shrink-0">
+                  {otherUser?.username?.charAt(0).toUpperCase() || '?'}
+                </div>
                 <div>
-                  <p className="font-semibold text-sm text-gray-900 dark:text-white">
-                    {isBotConv ? 'CrowdSource Support' : otherUser?.username}
-                  </p>
-                  {!isBotConv && (
-                    <p className="text-xs text-gray-400">@{otherUser?.username} · {otherUser?.role || 'citizen'}</p>
-                  )}
+                  <p className="font-semibold text-sm text-gray-900 dark:text-white">{otherUser?.username}</p>
+                  <p className="text-xs text-gray-400">@{otherUser?.username} · {otherUser?.role || 'citizen'}</p>
                 </div>
               </div>
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50 dark:bg-gray-900">
-              {activeMessages.length === 0 ? (
+              {messages.length === 0 ? (
                 <div className="text-center text-gray-400 mt-8">
                   <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">No messages yet. Say hello!</p>
                 </div>
               ) : (
-                activeMessages.map((msg: any) => {
+                messages.map((msg: any) => {
                   const senderId = typeof msg.senderId === 'object' ? msg.senderId._id : msg.senderId;
                   const isOwn = senderId === currentUserId;
                   return (

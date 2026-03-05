@@ -52,9 +52,9 @@ echo ✅ Speech Server started
 echo.
 
 :: Start Backend API Server
-echo [Step 5/5] Starting Backend API Server (Port 5000)...
+echo [Step 5/5] Starting Backend API Server (Port 5005)...
 cd backend
-start "Backend API - Port 5000" cmd /k "node server.js"
+start "Backend API - Port 5005" cmd /k "node server.js"
 cd ..
 ping 127.0.0.1 -n 4 > nul
 echo ✅ Backend Server started
@@ -64,16 +64,16 @@ echo =================================================================
 echo  🚀 All Services Started Successfully!
 echo =================================================================
 echo.
-echo  Main Server: http://localhost:5000
-echo  Health Check: http://localhost:5000/health
-echo  API Endpoints: http://localhost:5000/api
-echo  AI Vision: http://localhost:5000/ai-vision
-echo  Speech: http://localhost:5000/speech
+echo  Main Server: http://localhost:5005
+echo  Health Check: http://localhost:5005/health
+echo  API Endpoints: http://localhost:5005/api
+echo  AI Vision: http://localhost:5005/ai-vision
+echo  Speech: http://localhost:5005/speech
 echo.
 echo =================================================================
 echo.
 echo Opening application in browser...
-start http://localhost:5000
+start http://localhost:5005
 echo.
 echo Press any key to run API tests...
 pause > nul

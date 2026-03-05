@@ -9,7 +9,7 @@
       ]
     },
     {
-      "name": "Production Server 2", 
+      "name": "Production Server 2",
       "ip": "192.168.1.101",
       "username": "admin",
       "scripts": [
@@ -18,7 +18,7 @@
     },
     {
       "name": "Development Server",
-      "ip": "192.168.1.102", 
+      "ip": "192.168.1.102",
       "username": "dev",
       "scripts": [
         "C:\\dev\\civic-system\\run-all-servers.bat"
@@ -37,7 +37,7 @@
       "name": "Backend API",
       "command": "npm start",
       "workdir": "backend",
-      "port": 5000,
+      "port": 5005,
       "required": true
     },
     {
@@ -78,7 +78,7 @@
   ],
   "port_summary": {
     "3000": "Frontend (React Website)",
-    "5000": "Backend API (Node.js)", 
+    "5005": "Backend API (Node.js)",
     "5002": "Google ViT Server (Hugging Face Model)",
     "5006": "Your Google ViT Server (Local Model Files)",
     "27017": "MongoDB Database"

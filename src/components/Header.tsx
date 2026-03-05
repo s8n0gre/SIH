@@ -3,6 +3,7 @@ import { Menu, X, MapPin, AlertTriangle, FileText, Users, BarChart3, Database, T
 import LanguageSelector from './LanguageSelector';
 import NotificationModal from './NotificationModal';
 import NotificationBell from './NotificationBell';
+import AccessibilityPanel from './AccessibilityPanel';
 import { i18n } from '../services/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE } from '../config';
@@ -601,6 +602,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, user, onLogout
               <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-1 transition-colors duration-300">
                 <LanguageSelector />
               </div>
+              <AccessibilityPanel />
               <NotificationBell />
               {user && onLogout && (
                 <ProfileDropdown

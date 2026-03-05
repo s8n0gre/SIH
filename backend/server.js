@@ -15,7 +15,7 @@ const Notification = require('./models/Notification');
 const snSync = require('./servicenow-sync');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5005;
 
 // Middleware
 app.use(cors({
@@ -103,6 +103,87 @@ const requireRole = (roles) => (req, res, next) => {
 };
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Auth Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+// ===== Google OAuth =====
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+const GOOGLE_REDIRECT = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5005';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000/SIH/';
+
+app.get('/auth/google', (req, res) => {
+  if (!GOOGLE_CLIENT_ID) {
+    return res.redirect(FRONTEND_URL + '?error=google_not_configured');
+  }
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_REDIRECT,
+    response_type: 'code',
+    scope: 'openid email profile',
+    access_type: 'offline',
+    prompt: 'select_account'
+  });
+  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + params.toString());
+});
+
+// Google OAuth callback at root GET /
+// Google must be configured with redirect URI: http://localhost:5005
+app.get('/', async (req, res) => {
+  const { code, error } = req.query;
+  // Only handle if Google sent us a code
+  if (!code && !error) {
+    return res.json({ status: 'ok', message: 'Backend running' });
+  }
+  if (error || !code) {
+    return res.redirect(FRONTEND_URL + '?error=google_denied');
+  }
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code, client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_REDIRECT,
+        grant_type: 'authorization_code'
+      }).toString()
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) throw new Error('No access_token from Google');
+
+    const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: 'Bearer ' + tokenData.access_token }
+    });
+    const profile = await profileRes.json();
+
+    let user = await User.findOne({ email: profile.email });
+    if (!user) {
+      const crypto = require('crypto');
+      const username = (profile.name || 'user').replace(/\s+/g, '').toLowerCase().slice(0, 15)
+        + '_' + Date.now().toString().slice(-4);
+      user = new User({
+        username, email: profile.email,
+        password: crypto.randomBytes(24).toString('hex'),
+        role: 'citizen', isApproved: true, isVerified: true
+      });
+      await user.save();
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET || 'fallback_secret'
+    );
+
+    const userJson = encodeURIComponent(JSON.stringify({
+      id: user._id, username: user.username,
+      email: user.email, role: user.role, isApproved: user.isApproved
+    }));
+    res.redirect(FRONTEND_URL + '?auth_token=' + token + '&user=' + userJson);
+  } catch (err) {
+    console.error('Google OAuth error:', err.message);
+    res.redirect(FRONTEND_URL + '?error=google_failed');
+  }
+});
+
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, email, password, role, departmentId, phoneNumber, address } = req.body;

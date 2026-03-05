@@ -1,20 +1,5 @@
-# Dependencies
 node_modules/
-backend/node_modules/
-__pycache__/
-.env
-.DS_Store
-
-# Build folders
 dist/
-build/
-.vs/
-.vscode/
-
-# AI Models (Do not commit massive binaries)
-ai_server/*.gguf
-ai_server/ggml-model*
-ai_server/ai4bharatindicwav2vec-hindi/
-
-# Ignore trash holding
-trash/
+venv/
+.env
+nemo_extracted/

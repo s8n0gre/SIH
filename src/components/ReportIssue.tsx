@@ -149,11 +149,49 @@ const ReportIssue: React.FC = () => {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...files]
-      }));
-      analyzeImage(files[0]);
+      const audioFiles = files.filter(f => f.type.startsWith('audio/'));
+      const otherFiles = files.filter(f => !f.type.startsWith('audio/'));
+
+      if (audioFiles.length > 0) {
+        audioFiles.forEach(processAudioFile);
+      }
+
+      if (otherFiles.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, ...otherFiles]
+        }));
+        analyzeImage(otherFiles[0]);
+      }
+    }
+  };
+
+  const processAudioFile = async (file: File) => {
+    setIsAnalyzing(true);
+    try {
+      const formDataObj = new FormData();
+      formDataObj.append('audio', file);
+
+      const response = await fetch('/speech/transcribe', {
+        method: 'POST',
+        body: formDataObj
+      });
+
+      const result = await response.json();
+      if (result.transcript) {
+        const text = result.transcript;
+        const translation = result.translation;
+        setFormData(prev => ({
+          ...prev,
+          description: prev.description +
+            (prev.description ? '\n' : '') +
+            (translation ? `${text} (English: ${translation})` : text)
+        }));
+      }
+    } catch (error) {
+      console.error('Error processing audio file:', error);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -435,9 +473,11 @@ const ReportIssue: React.FC = () => {
                   <p className="text-amber-700 text-xs mb-3">For best results, please turn off other audio sources (YouTube, Spotify, music, etc.) before using voice input.</p>
                   <div className="flex justify-center">
                     <VoiceInput
-                      onTranscription={(text) => setFormData(prev => ({
+                      onTranscription={(text: string, translation?: string) => setFormData(prev => ({
                         ...prev,
-                        description: prev.description + (prev.description ? ' ' : '') + text
+                        description: prev.description +
+                          (prev.description ? '\n' : '') +
+                          (translation ? `${text} (English: ${translation})` : text)
                       }))}
                       placeholder="Hold to speak in Hindi"
                     />
@@ -571,7 +611,7 @@ const ReportIssue: React.FC = () => {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/*,video/*"
+                  accept="image/*,video/*,audio/*"
                   onChange={handleImageUpload}
                   className="hidden"
                 />

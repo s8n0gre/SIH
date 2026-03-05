@@ -49,7 +49,7 @@ echo =================================================================
 echo  Development Servers Running:
 echo =================================================================
 echo  Frontend: http://localhost:3000
-echo  Backend: http://localhost:5000
+echo  Backend: http://localhost:5005
 echo  AI Vision: http://localhost:5007
 echo  Speech: http://localhost:8000
 echo =================================================================

@@ -9,6 +9,7 @@ import IntroPage from './components/IntroPage';
 import ConnectionStatus from './components/ConnectionStatus';
 import Helpline from './components/Helpline';
 import ProfilePage from './components/ProfilePage';
+import AdminDashboard from './components/AdminDashboard';
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
@@ -59,12 +60,56 @@ function App() {
 
   const currentUser = JSON.parse(localStorage.getItem('civicUser') || '{}');
   const currentUserId = currentUser.id || currentUser._id;
+  const userRole = localStorage.getItem('userRole') || currentUser.role || 'user';
   const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
 
   useEffect(() => {
     const onHashChange = () => setCurrentHash(window.location.hash);
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  // Toggle body class so CSS can clear all blocking backgrounds when on home
+  useEffect(() => {
+    if (activeTab === 'home') {
+      document.body.classList.add('home-bg');
+    } else {
+      document.body.classList.remove('home-bg');
+    }
+  }, [activeTab]);
+
+  // Handle Google OAuth callback params: ?auth_token=...&user=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authToken = params.get('auth_token');
+    const userJson = params.get('user');
+    const oauthError = params.get('error');
+
+    if (oauthError) {
+      const msgs: Record<string, string> = {
+        google_not_configured: 'Google login is not yet configured on this server. Please sign in with email.',
+        google_denied: 'Google sign-in was cancelled.',
+        google_failed: 'Google sign-in failed. Please try again.',
+      };
+      alert(msgs[oauthError] || 'Sign-in error: ' + oauthError);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    if (authToken && userJson) {
+      try {
+        const userData = JSON.parse(decodeURIComponent(userJson));
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('civicUser', JSON.stringify(userData));
+        localStorage.setItem('currentUser', userData.username);
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
+        setUser(userData);
+        showNotification(`Welcome, ${userData.username}! 🇮🇳`, 'success');
+      } catch {
+        // Bad token, ignore
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
   }, []);
 
   const tabs = ['home', 'feed'];
@@ -174,10 +219,45 @@ function App() {
     );
   }
 
+  // Admin Route Protection
+  const isAdminRoute = currentHash.startsWith('#/admin');
+
+  if (isAdminRoute) {
+    if (userRole === 'sys_admin' || userRole === 'department_admin') {
+      return (
+        <ThemeProvider>
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+            {/* Minimal Header for Admin */}
+            <header className="bg-gradient-to-r from-orange-600 via-white to-green-600 dark:from-orange-700 dark:via-gray-800 dark:to-green-700 shadow-lg border-b-4 border-orange-500 dark:border-orange-600">
+              <div className="bg-white dark:bg-gray-800 bg-opacity-95 px-4 py-3 flex justify-between items-center">
+                <div className="flex items-center gap-2 text-gray-800 dark:text-white font-bold text-xl">
+                  Admin Control Panel
+                </div>
+                <button
+                  onClick={() => { window.location.hash = ''; }}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Back to App
+                </button>
+              </div>
+            </header>
+            <main>
+              <AdminDashboard />
+            </main>
+          </div>
+        </ThemeProvider>
+      );
+    } else {
+      // Redirect non-admins to home
+      window.location.hash = '';
+      return null;
+    }
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomePage setActiveTab={setActiveTab} />;
+        return <HomePage setActiveTab={setActiveTab} onReport={() => setShowReportModal(true)} />;
       case 'report':
         return <ReportIssue />;
       case 'feed':
@@ -185,13 +265,13 @@ function App() {
       case 'helpline':
         return <Helpline />;
       default:
-        return <HomePage setActiveTab={setActiveTab} />;
+        return <HomePage setActiveTab={setActiveTab} onReport={() => setShowReportModal(true)} />;
     }
   };
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+      <div className={`min-h-screen transition-colors duration-300 ${activeTab === 'home' ? 'bg-transparent' : 'bg-gray-50 dark:bg-gray-900'}`}>
         <div className={`${showReportModal ? 'blur-sm pointer-events-none' : ''} transition-all duration-300`}>
           <Header activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout} />
 
@@ -266,7 +346,8 @@ function App() {
                 onClick={() =>
                   setActiveTab(activeTab === 'helpline' ? 'home' : activeTab === 'home' ? 'helpline' : 'home')
                 }
-                className={`flex flex-col items-center py-1 px-2 rounded-lg transition-all duration-200 min-w-0 flex-1 ${activeTab === 'home' ? 'text-blue-600 bg-gray-100 dark:bg-gray-700 transform scale-105'
+                className={`flex flex-col items-center py-1 px-2 rounded-lg transition-all duration-200 min-w-0 flex-1 ${activeTab === 'home'
+                  ? 'text-orange-600 bg-orange-50 dark:bg-orange-900/20 transform scale-105'
                   : activeTab === 'helpline' ? 'text-purple-600 bg-gray-100 dark:bg-gray-700 transform scale-105'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
@@ -304,7 +385,7 @@ function App() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex flex-col items-center py-1 px-2 rounded-lg transition-all duration-200 min-w-0 flex-1 ${activeTab === tab.id
-                    ? `${tab.color} bg-gray-100 dark:bg-gray-700 transform scale-105`
+                    ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 transform scale-105'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                 >
