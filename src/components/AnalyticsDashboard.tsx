@@ -24,10 +24,10 @@ const TREND_DATA = [
 ];
 
 const CSI_DATA = [
-    { name: 'Very Satisfied', value: 38, color: '#22c55e' },
-    { name: 'Satisfied', value: 29, color: '#84cc16' },
-    { name: 'Neutral', value: 16, color: '#eab308' },
-    { name: 'Unsatisfied', value: 11, color: '#f97316' },
+    { name: 'Very Satisfied', value: 38, color: '#f59e0b' },
+    { name: 'Satisfied', value: 29, color: '#10b981' },
+    { name: 'Neutral', value: 16, color: '#3b82f6' },
+    { name: 'Unsatisfied', value: 11, color: '#8b5cf6' },
     { name: 'Very Unsatisfied', value: 6, color: '#ef4444' },
 ];
 
@@ -39,45 +39,56 @@ const WARD_DATA = [
     { ward: 'Ward 24', complaints: 38, resolved: 31, breach: 4 },
 ];
 
-const DEPT_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
-
 // ─── KPI tile ─────────────────────────────────────────────────────────────────
-const KPITile: React.FC<{ label: string; value: string | number; sub?: string; color?: string; icon: React.ReactNode }> = ({ label, value, sub, color = 'text-blue-600', icon }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{label}</p>
-            <div className={`${color} opacity-80`}>{icon}</div>
+const KPITile: React.FC<{ label: string; value: string | number; sub?: string; icon: React.ReactNode; trend?: 'up' | 'down' | 'neutral' }> = ({ label, value, sub, icon, trend }) => (
+    <div className="card p-5 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-500" style={{ color: 'var(--text-primary)' }}>
+            {icon}
         </div>
-        <p className={`text-2xl font-bold ${color}`}>{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        <div className="relative z-10">
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>{label}</p>
+            <div className="flex items-end gap-3 mb-1">
+                <p className="text-3xl font-mono tracking-tight font-bold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                {trend && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 mb-1 ${trend === 'up' ? 'bg-green-500/10 text-green-500' : trend === 'down' ? 'bg-red-500/10 text-red-500' : 'bg-gray-500/10 text-gray-500'
+                        }`}>
+                        {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
+                    </span>
+                )}
+            </div>
+            {sub && <p className="text-[10px] font-medium" style={{ color: 'var(--text-faint)' }}>{sub}</p>}
+        </div>
     </div>
 );
 
-// ─── Heatmap (SVG grid substitute — no native Leaflet in Vite easily) ─────────
+// ─── Heatmap ──────────────────────────────────────────────────────────────────
 const WardHeatmap: React.FC = () => {
     const maxCount = Math.max(...WARD_DATA.map(w => w.complaints));
     return (
-        <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Ward-level Complaint Density</h3>
-            <div className="grid grid-cols-5 gap-2">
+        <div className="space-y-4">
+            <h3 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Ward-level Density Matrix</h3>
+            <div className="grid grid-cols-5 gap-3">
                 {WARD_DATA.map(w => {
                     const intensity = w.complaints / maxCount;
-                    const bg = intensity > 0.8 ? 'bg-red-600' : intensity > 0.6 ? 'bg-orange-500' : intensity > 0.4 ? 'bg-yellow-400' : intensity > 0.2 ? 'bg-green-400' : 'bg-blue-300';
+                    // Using amber/orange scale for premium look
+                    const scale = intensity > 0.8 ? 500 : intensity > 0.6 ? 400 : intensity > 0.4 ? 300 : intensity > 0.2 ? 200 : 100;
                     return (
-                        <div key={w.ward} className={`relative ${bg} rounded-xl p-3 text-white cursor-pointer hover:scale-105 transition-transform`} style={{ opacity: 0.6 + intensity * 0.4 }}>
-                            <p className="text-[10px] font-semibold">{w.ward}</p>
-                            <p className="text-lg font-bold">{w.complaints}</p>
-                            <p className="text-[10px]">{w.resolved} resolved</p>
-                            {w.breach > 0 && <span className="absolute top-1 right-1 text-[9px] bg-white/30 rounded px-1">{w.breach}⚠️</span>}
+                        <div key={w.ward} className="relative rounded-xl p-3 cursor-pointer hover:scale-105 transition-all duration-300 border border-transparent hover:border-amber-500/30 overflow-hidden group" style={{ background: 'var(--bg-elevated)' }}>
+                            <div className="absolute inset-0 opacity-20 transition-opacity group-hover:opacity-40" style={{ backgroundColor: `var(--amber-${scale})` }} />
+                            <div className="relative z-10">
+                                <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--text-muted)' }}>{w.ward}</p>
+                                <p className="text-xl font-bold font-mono my-1" style={{ color: 'var(--text-primary)' }}>{w.complaints}</p>
+                                <p className="text-[10px] font-medium" style={{ color: 'var(--text-faint)' }}>{w.resolved} resolved</p>
+                            </div>
+                            {w.breach > 0 && <span className="absolute top-2 right-2 text-[10px] font-bold bg-red-500/20 text-red-500 px-1.5 py-0.5 rounded">{w.breach}</span>}
                         </div>
                     );
                 })}
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-300 block" /> Low</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-400 block" /> Medium</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500 block" /> High</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-600 block" /> Critical</span>
+            <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-faint)' }}>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-amber-500/20 border border-amber-500/30 block" /> Low</span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-amber-500/50 border border-amber-500/60 block" /> Medium</span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-amber-500 border border-amber-400 block" /> Critical</span>
             </div>
         </div>
     );
@@ -102,140 +113,123 @@ const AnalyticsDashboard: React.FC = () => {
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><BarChart2 className="w-5 h-5 text-blue-500" /> Analytics Dashboard</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Department SLA, CSI, ward heatmap, and resolution trends</p>
+                    <h2 className="text-xl font-bold tracking-tight mb-1" style={{ color: 'var(--text-primary)' }}>Analytics & Metrics</h2>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>System-wide performance, SLA, and CSI tracking</p>
                 </div>
-                <button onClick={exportCSV} className="flex items-center gap-1.5 text-xs bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 px-3 py-2 rounded-xl font-medium transition-colors hover:bg-gray-700 dark:hover:bg-gray-300">
-                    <Download className="w-3.5 h-3.5" /> Export CSV
+                <button onClick={exportCSV} className="btn-secondary px-4 py-2 text-xs font-semibold">
+                    <Download className="w-3.5 h-3.5 mr-1.5" /> Export Data CSV
                 </button>
             </div>
 
             {/* KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <KPITile label="Total Complaints" value={totalComplaints} sub="Last 6 months" color="text-blue-600" icon={<BarChart2 className="w-5 h-5" />} />
-                <KPITile label="Resolution Rate" value={`${resolutionRate}%`} sub={`${totalResolved} of ${totalComplaints}`} color="text-green-600" icon={<CheckCircle className="w-5 h-5" />} />
-                <KPITile label="CSI Score" value={csi.toFixed(2)} sub="Citizen Satisfaction (max 5)" color="text-yellow-600" icon={<Star className="w-5 h-5" />} />
-                <KPITile label="SLA Breaches" value={SLA_DATA.reduce((s, d) => s + d.breach, 0)} sub="All departments" color="text-red-600" icon={<AlertTriangle className="w-5 h-5" />} />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
+                <KPITile label="Total Active" value={totalComplaints} sub="System-wide volume" icon={<BarChart2 className="w-6 h-6" />} trend="up" />
+                <KPITile label="Resolution Rate" value={`${resolutionRate}%`} sub="Across all wards" icon={<CheckCircle className="w-6 h-6" />} trend="up" />
+                <KPITile label="CSI Index" value={csi.toFixed(2)} sub="Satisfaction (Max 5.0)" icon={<Star className="w-6 h-6" />} trend="neutral" />
+                <KPITile label="SLA Breaches" value={SLA_DATA.reduce((s, d) => s + d.breach, 0)} sub="Requires attention" icon={<AlertTriangle className="w-6 h-6" />} trend="down" />
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 flex-wrap">
+            <div className="flex gap-2 p-1.5 bg-gray-100/50 dark:bg-gray-800/30 rounded-xl w-fit border" style={{ borderColor: 'var(--border)' }}>
                 {[
-                    { key: 'overview', label: '📈 Trends' },
-                    { key: 'sla', label: '⏱️ Dept SLA' },
-                    { key: 'csi', label: '⭐ CSI' },
-                    { key: 'ward', label: '🗺️ Ward Map' },
+                    { key: 'overview', label: 'Volume Trends' },
+                    { key: 'sla', label: 'SLA Performance' },
+                    { key: 'csi', label: 'Satisfaction Map' },
+                    { key: 'ward', label: 'Density Matrix' },
                 ].map(({ key, label }) => (
                     <button key={key} onClick={() => setActiveTab(key as any)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === key ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${activeTab === key ? 'bg-white shadow-sm dark:bg-gray-700/50' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70'
+                            }`} style={{ color: activeTab === key ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                         {label}
                     </button>
                 ))}
             </div>
 
             {/* Tab content */}
-            {activeTab === 'overview' && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Monthly Complaint Volume & Resolution</p>
-                    <ResponsiveContainer width="100%" height={220}>
-                        <AreaChart data={TREND_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id="gSubmit" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                </linearGradient>
-                                <linearGradient id="gResolve" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                            <YAxis tick={{ fontSize: 11 }} />
-                            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                            <Legend wrapperStyle={{ fontSize: 11 }} />
-                            <Area type="monotone" dataKey="submitted" name="Submitted" stroke="#3b82f6" fill="url(#gSubmit)" strokeWidth={2} />
-                            <Area type="monotone" dataKey="resolved" name="Resolved" stroke="#22c55e" fill="url(#gResolve)" strokeWidth={2} />
-                            <Line type="monotone" dataKey="escalated" name="Escalated" stroke="#ef4444" strokeWidth={1.5} dot={{ r: 3 }} strokeDasharray="4 2" />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            )}
-
-            {activeTab === 'sla' && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Department SLA Performance (hours)</p>
-                    <ResponsiveContainer width="100%" height={240}>
-                        <BarChart data={SLA_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis dataKey="dept" tick={{ fontSize: 11 }} />
-                            <YAxis tick={{ fontSize: 11 }} />
-                            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                            <Legend wrapperStyle={{ fontSize: 11 }} />
-                            <Bar dataKey="p50" name="P50 (median)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="p95" name="P95 (95th pct)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="target" name="SLA Target" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                    {/* Breach table */}
-                    <div className="mt-4 overflow-x-auto">
-                        <table className="w-full text-xs">
-                            <thead><tr className="border-b border-gray-100 dark:border-gray-700">{['Department', 'Target', 'P50', 'P95', 'Breaches'].map(h => <th key={h} className="text-left py-2 px-2 text-gray-500 font-medium">{h}</th>)}</tr></thead>
-                            <tbody>
-                                {SLA_DATA.map((d, i) => (
-                                    <tr key={d.dept} className="border-b border-gray-50 dark:border-gray-700">
-                                        <td className="py-2 px-2 font-medium text-gray-800 dark:text-white">{d.dept}</td>
-                                        <td className="py-2 px-2 text-gray-500">{d.target}h</td>
-                                        <td className={`py-2 px-2 font-semibold ${d.p50 > d.target ? 'text-red-600' : 'text-green-600'}`}>{d.p50}h</td>
-                                        <td className={`py-2 px-2 font-semibold ${d.p95 > d.target ? 'text-orange-600' : 'text-blue-600'}`}>{d.p95}h</td>
-                                        <td className={`py-2 px-2 font-bold ${d.breach > 10 ? 'text-red-600' : d.breach > 5 ? 'text-orange-500' : 'text-green-600'}`}>{d.breach}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'csi' && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Citizen Satisfaction Index (CSI)</p>
-                    <div className="flex flex-col sm:flex-row gap-4 items-center">
-                        <ResponsiveContainer width={240} height={220}>
-                            <PieChart>
-                                <Pie data={CSI_DATA} cx="50%" cy="50%" innerRadius={55} outerRadius={90} dataKey="value" paddingAngle={3}>
-                                    {CSI_DATA.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                                </Pie>
-                                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: any) => [`${v}%`]} />
-                            </PieChart>
+            <div className="card p-6 animate-fade-up">
+                {activeTab === 'overview' && (
+                    <div>
+                        <p className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text-primary)' }}>Volume Progression (6mo)</p>
+                        <ResponsiveContainer width="100%" height={280}>
+                            <AreaChart data={TREND_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="gSubmit" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="gResolve" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border)', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }} />
+                                <Legend wrapperStyle={{ fontSize: 11, fontWeight: 'bold', color: 'var(--text-muted)' }} />
+                                <Area type="monotone" dataKey="submitted" name="Net Opened" stroke="#f59e0b" fill="url(#gSubmit)" strokeWidth={3} />
+                                <Area type="monotone" dataKey="resolved" name="Net Resolved" stroke="#10b981" fill="url(#gResolve)" strokeWidth={3} />
+                                <Line type="monotone" dataKey="escalated" name="Escalations" stroke="#ef4444" strokeWidth={2} dot={{ r: 4, strokeWidth: 2 }} strokeDasharray="4 4" />
+                            </AreaChart>
                         </ResponsiveContainer>
-                        <div className="space-y-2 flex-1">
-                            {CSI_DATA.map(d => (
-                                <div key={d.name} className="flex items-center gap-2">
-                                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: d.color }} />
-                                    <span className="text-xs text-gray-700 dark:text-gray-300 flex-1">{d.name}</span>
-                                    <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                                        <div className="h-full rounded-full" style={{ width: `${d.value}%`, background: d.color }} />
+                    </div>
+                )}
+
+                {activeTab === 'sla' && (
+                    <div>
+                        <p className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text-primary)' }}>SLA Delivery Deviation (hrs)</p>
+                        <ResponsiveContainer width="100%" height={280}>
+                            <BarChart data={SLA_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                <XAxis dataKey="dept" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <Tooltip cursor={{ fill: 'var(--bg-elevated)' }} contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border)', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }} />
+                                <Legend wrapperStyle={{ fontSize: 11, fontWeight: 'bold' }} />
+                                <Bar dataKey="p50" name="Median (P50)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                <Bar dataKey="p95" name="Tail (P95)" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                <Bar dataKey="target" name="SLA Limit" fill="#64748b" radius={[4, 4, 0, 0]} maxBarSize={40} opacity={0.3} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+
+                {activeTab === 'csi' && (
+                    <div className="flex flex-col md:flex-row gap-8 items-center">
+                        <div className="flex-1 w-full">
+                            <p className="text-sm font-bold tracking-tight mb-4" style={{ color: 'var(--text-primary)' }}>Citizen Satisfaction Survey</p>
+                            <div className="space-y-4">
+                                {CSI_DATA.map(d => (
+                                    <div key={d.name} className="flex items-center gap-4">
+                                        <span className="text-xs font-bold w-32" style={{ color: 'var(--text-primary)' }}>{d.name}</span>
+                                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-elevated)' }}>
+                                            <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${d.value}%`, background: d.color }} />
+                                        </div>
+                                        <span className="text-xs font-mono font-bold w-12 text-right" style={{ color: 'var(--text-secondary)' }}>{d.value}%</span>
                                     </div>
-                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 w-8 text-right">{d.value}%</span>
-                                </div>
-                            ))}
-                            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                                <p className="text-xs text-gray-500">Overall CSI: <span className="font-bold text-yellow-600">{csi.toFixed(2)} / 5.00</span></p>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="w-64 h-64 p-4 border rounded-フル hidden md:flex items-center justify-center flex-col relative" style={{ borderColor: 'var(--border)', borderRadius: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%" className="absolute inset-0">
+                                <PieChart>
+                                    <Pie data={CSI_DATA} cx="50%" cy="50%" innerRadius={70} outerRadius={90} dataKey="value" stroke="none" paddingAngle={2}>
+                                        {CSI_DATA.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="relative z-10 text-center">
+                                <p className="text-3xl font-bold font-mono" style={{ color: 'var(--accent-amber)' }}>{csi.toFixed(2)}</p>
+                                <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--text-muted)' }}>Aggregate / 5.0</p>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {activeTab === 'ward' && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                    <WardHeatmap />
-                </div>
-            )}
+                {activeTab === 'ward' && <WardHeatmap />}
+            </div>
         </div>
     );
 };

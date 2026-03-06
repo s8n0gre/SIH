@@ -49,19 +49,19 @@ const DEMO_WORK_ORDERS: WorkOrder[] = [
     },
 ];
 
-const STATUS_CONFIG: Record<WorkOrderStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-    pending: { label: 'Pending', color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-700', icon: <Clock className="w-3 h-3" /> },
-    assigned: { label: 'Assigned', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/40', icon: <User className="w-3 h-3" /> },
-    'in-progress': { label: 'In Progress', color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/40', icon: <Wrench className="w-3 h-3" /> },
-    completed: { label: 'Completed', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/40', icon: <CheckCircle className="w-3 h-3" /> },
-    cancelled: { label: 'Cancelled', color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/40', icon: <Trash2 className="w-3 h-3" /> },
+const STATUS_CONFIG: Record<WorkOrderStatus, { label: string; colorClass: string; icon: React.ReactNode }> = {
+    pending: { label: 'Pending', colorClass: 'badge-neutral', icon: <Clock className="w-3.5 h-3.5" /> },
+    assigned: { label: 'Assigned', colorClass: 'badge-info', icon: <User className="w-3.5 h-3.5" /> },
+    'in-progress': { label: 'In Progress', colorClass: 'badge-warning', icon: <Wrench className="w-3.5 h-3.5" /> },
+    completed: { label: 'Completed', colorClass: 'badge-success', icon: <CheckCircle className="w-3.5 h-3.5" /> },
+    cancelled: { label: 'Cancelled', colorClass: 'badge-error', icon: <Trash2 className="w-3.5 h-3.5" /> },
 };
 
 const PRIORITY_CONFIG: Record<WorkOrderPriority, { color: string }> = {
-    low: { color: 'text-gray-500' },
-    medium: { color: 'text-yellow-600' },
-    high: { color: 'text-orange-600' },
-    critical: { color: 'text-red-600' },
+    low: { color: 'var(--text-muted)' },
+    medium: { color: '#f59e0b' },
+    high: { color: '#f97316' },
+    critical: { color: '#ef4444' },
 };
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -73,85 +73,110 @@ const WorkOrderCard: React.FC<{ wo: WorkOrder; onStatusChange: (id: string, s: W
     const pr = PRIORITY_CONFIG[wo.priority];
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="card transition-all duration-300 overflow-hidden group hover:border-amber-500/30">
             {/* Card header */}
-            <div className="flex items-start gap-3 p-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${st.bg} ${st.color}`}>{st.icon}</div>
+            <div className="flex items-start gap-4 p-5 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 ${st.colorClass}`}>
+                    {st.icon}
+                </div>
+
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-gray-800 dark:text-white line-clamp-1">{wo.title}</p>
-                        <span className={`text-[10px] font-bold uppercase flex-shrink-0 ${pr.color}`}>{wo.priority}</span>
+                    <div className="flex items-start justify-between gap-4 mb-1">
+                        <p className="text-base font-bold truncate" style={{ color: 'var(--text-primary)' }}>{wo.title}</p>
+                        <span className="text-[10px] font-bold uppercase tracking-wider flex-shrink-0 px-2 py-0.5 rounded" style={{ color: pr.color, border: `1px solid ${pr.color}30`, backgroundColor: `${pr.color}10` }}>
+                            {wo.priority}
+                        </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
-                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{wo.location}</span>
-                        {wo.assignedTo && <span className="flex items-center gap-1"><User className="w-3 h-3" />{wo.assignedTo}</span>}
-                        {wo.scheduledDate && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{wo.scheduledDate}</span>}
+
+                    <div className="flex items-center gap-4 text-xs font-medium flex-wrap" style={{ color: 'var(--text-muted)' }}>
+                        <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 opacity-70" />{wo.location}</span>
+                        {wo.assignedTo && <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 opacity-70" />{wo.assignedTo}</span>}
+                        {wo.scheduledDate && <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 opacity-70" />{new Date(wo.scheduledDate).toLocaleDateString()}</span>}
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${st.color} ${st.bg}`}>
-                        {st.icon}{st.label}
+
+                <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${st.colorClass}`}>
+                        {st.label}
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} style={{ color: 'var(--text-muted)' }} />
+                    </div>
                 </div>
             </div>
 
             {/* Expanded details */}
-            {expanded && (
-                <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-300">{wo.description}</p>
+            <div className={`grid transition-all duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                <div className="overflow-hidden">
+                    <div className="px-5 pb-5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                        <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>{wo.description}</p>
 
-                    {/* Materials */}
-                    {wo.materials && wo.materials.length > 0 && (
-                        <div>
-                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Materials</p>
-                            <div className="flex flex-wrap gap-2">
-                                {wo.materials.map((m, i) => (
-                                    <span key={i} className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
-                                        {m.name} × {m.qty} {m.unit}
-                                    </span>
-                                ))}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                            {/* Materials */}
+                            {wo.materials && wo.materials.length > 0 && (
+                                <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-elevated)' }}>
+                                    <p className="text-[10px] uppercase font-bold tracking-wider mb-2" style={{ color: 'var(--text-faint)' }}>Bill of Materials</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {wo.materials.map((m, i) => (
+                                            <span key={i} className="text-xs font-mono font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-500/20">
+                                                {m.qty} {m.unit} <span className="opacity-50 mx-1">×</span> {m.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Crew */}
+                            {wo.crew && wo.crew.length > 0 && (
+                                <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-elevated)' }}>
+                                    <p className="text-[10px] uppercase font-bold tracking-wider mb-2" style={{ color: 'var(--text-faint)' }}>Assigned Crew</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {wo.crew.map((m, i) => (
+                                            <span key={i} className="text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-full border border-indigo-500/20 flex items-center gap-1.5">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> {m}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Completion notes */}
+                        {wo.completionNotes && (
+                            <div className="mb-5 p-3 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 text-sm flex items-start gap-2">
+                                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold tracking-wider opacity-70 mb-0.5">Execution Notes</p>
+                                    <p className="font-medium">{wo.completionNotes}</p>
+                                </div>
                             </div>
-                        </div>
-                    )}
-
-                    {/* Crew */}
-                    {wo.crew && wo.crew.length > 0 && (
-                        <div>
-                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Crew</p>
-                            <div className="flex gap-1">
-                                {wo.crew.map((m, i) => (
-                                    <span key={i} className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xs font-bold text-indigo-700 dark:text-indigo-300">{m[0]}</span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Completion notes */}
-                    {wo.completionNotes && (
-                        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-xs text-green-700 dark:text-green-400">
-                            ✅ {wo.completionNotes}
-                        </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-2 flex-wrap">
-                        {wo.status !== 'completed' && (
-                            <>
-                                {wo.status === 'pending' && <button onClick={() => onStatusChange(wo.id, 'assigned')} className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl font-medium transition-colors">Mark Assigned</button>}
-                                {wo.status === 'assigned' && <button onClick={() => onStatusChange(wo.id, 'in-progress')} className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-xl font-medium transition-colors">Start Work</button>}
-                                {wo.status === 'in-progress' && (
-                                    <>
-                                        <button onClick={() => onStatusChange(wo.id, 'completed')} className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-xl font-medium flex items-center gap-1 transition-colors"><CheckCircle className="w-3 h-3" />Mark Complete</button>
-                                        <button className="text-xs border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 px-3 py-1.5 rounded-xl font-medium flex items-center gap-1 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"><Camera className="w-3 h-3" />Upload Proof</button>
-                                    </>
-                                )}
-                            </>
                         )}
-                        <button onClick={() => onDelete(wo.id)} className="text-xs border border-red-200 dark:border-red-800 text-red-500 px-3 py-1.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ml-auto">Delete</button>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-3 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                            {wo.status !== 'completed' && (
+                                <>
+                                    {wo.status === 'pending' && <button onClick={() => onStatusChange(wo.id, 'assigned')} className="btn-primary text-xs px-4 bg-blue-600 hover:bg-blue-700 border-none text-white">Mark Assigned</button>}
+                                    {wo.status === 'assigned' && <button onClick={() => onStatusChange(wo.id, 'in-progress')} className="btn-primary text-xs px-4 bg-amber-500 hover:bg-amber-600 border-none text-white shadow-amber-500/20 shadow-lg">Start Work</button>}
+                                    {wo.status === 'in-progress' && (
+                                        <>
+                                            <button onClick={() => onStatusChange(wo.id, 'completed')} className="btn-primary text-xs px-4 bg-green-500 hover:bg-green-600 border-none text-white shadow-green-500/20 shadow-lg">
+                                                <CheckCircle className="w-4 h-4 mr-1.5" /> Mark Complete
+                                            </button>
+                                            <button className="btn-secondary text-xs px-4">
+                                                <Camera className="w-4 h-4 mr-1.5" /> Field Proof
+                                            </button>
+                                        </>
+                                    )}
+                                </>
+                            )}
+                            <button onClick={() => onDelete(wo.id)} className="btn-secondary text-xs px-4 ml-auto text-red-500 hover:text-red-600 hover:bg-red-500/10 hover:border-red-500/30">
+                                Delete Order
+                            </button>
+                        </div>
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
@@ -167,26 +192,49 @@ const NewWorkOrderForm: React.FC<{ onAdd: (wo: WorkOrder) => void; onClose: () =
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl border-2 border-blue-300 dark:border-blue-600 p-4 space-y-3">
-            <p className="font-semibold text-gray-800 dark:text-white text-sm">New Work Order</p>
-            <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Work order title" className="w-full text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl px-3 py-2" />
-            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Description / scope of work" className="w-full text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl px-3 py-2 resize-none" />
-            <div className="grid grid-cols-2 gap-2">
-                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl px-3 py-2">
-                    {['Roads', 'Electricity', 'Water', 'Waste', 'Parks', 'Safety'].map(c => <option key={c}>{c}</option>)}
-                </select>
-                <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value as WorkOrderPriority })} className="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl px-3 py-2">
-                    {['low', 'medium', 'high', 'critical'].map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+        <form onSubmit={handleSubmit} className="card p-6 border-l-4 border-l-blue-500 shadow-xl relative overflow-hidden animate-fade-in">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Dispatch New Work Order</h3>
+                    <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--text-muted)' }}>Fill details to generate job card</p>
+                </div>
+                <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                    <X className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                </button>
             </div>
-            <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Location / address" className="w-full text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl px-3 py-2" />
-            <div className="grid grid-cols-2 gap-2">
-                <input value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })} placeholder="Assign to (name/team)" className="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl px-3 py-2" />
-                <input type="date" value={form.scheduledDate} onChange={e => setForm({ ...form, scheduledDate: e.target.value })} className="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl px-3 py-2" />
-            </div>
-            <div className="flex gap-2">
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-semibold transition-colors">Create Work Order</button>
-                <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+
+            <div className="space-y-4 relative z-10">
+                <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Work order title" className="input-field w-full font-semibold" />
+                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Description / scope of work" className="input-field w-full resize-none" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="relative">
+                        <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="input-field w-full appearance-none bg-transparent">
+                            {['Roads', 'Electricity', 'Water', 'Waste', 'Parks', 'Safety'].map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-3.5 w-4 h-4 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                    <div className="relative">
+                        <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value as WorkOrderPriority })} className="input-field w-full appearance-none bg-transparent">
+                            {['low', 'medium', 'high', 'critical'].map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)} Priority</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-3.5 w-4 h-4 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                </div>
+
+                <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Location / address" className="input-field w-full" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })} placeholder="Assign to (name/team)" className="input-field w-full" />
+                    <input type="date" value={form.scheduledDate} onChange={e => setForm({ ...form, scheduledDate: e.target.value })} className="input-field w-full" />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-3">
+                    <button type="button" onClick={onClose} className="btn-secondary px-6">Cancel</button>
+                    <button type="submit" className="btn-primary bg-blue-600 hover:bg-blue-700 text-white border-transparent px-8 shadow-blue-500/25 shadow-lg">Generate Job</button>
+                </div>
             </div>
         </form>
     );
@@ -208,36 +256,41 @@ const WorkOrderManager: React.FC = () => {
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><Wrench className="w-5 h-5 text-orange-500" /> Work Order Manager</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Create, assign, track, and close field work orders</p>
+                    <h2 className="text-xl font-bold tracking-tight mb-1" style={{ color: 'var(--text-primary)' }}>Work Orders</h2>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Dispatch, assign, and track field operations</p>
                 </div>
-                <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl font-medium transition-colors">
-                    <Plus className="w-4 h-4" /> New Order
+                <button onClick={() => setShowForm(true)} className="btn-primary px-5 text-sm bg-blue-600 hover:bg-blue-700 text-white border-transparent shadow-blue-500/20 shadow-lg">
+                    <Plus className="w-4 h-4 mr-1.5" /> Dispatch Order
                 </button>
             </div>
 
-            {/* Stat pills */}
-            <div className="flex gap-2 flex-wrap">
+            {/* Form Inject */}
+            {showForm && <NewWorkOrderForm onAdd={wo => setOrders(prev => [wo, ...prev])} onClose={() => setShowForm(false)} />}
+
+            {/* Filters */}
+            <div className="flex gap-2 p-1.5 bg-gray-100/50 dark:bg-gray-800/30 rounded-xl w-fit border overflow-x-auto max-w-full" style={{ borderColor: 'var(--border)' }}>
                 {[
-                    { label: 'All', val: counts.total, key: 'all', color: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' },
-                    { label: 'Pending', val: counts.pending, key: 'pending', color: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' },
-                    { label: 'In Progress', val: counts.inProgress, key: 'in-progress', color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' },
-                    { label: 'Completed', val: counts.completed, key: 'completed', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' },
-                ].map(({ label, val, key, color }) => (
-                    <button key={key} onClick={() => setFilterStatus(key as any)} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${color} ${filterStatus === key ? 'ring-2 ring-offset-1 ring-blue-500' : 'hover:opacity-80'}`}>
-                        {label} ({val})
+                    { label: 'All Jobs', val: counts.total, key: 'all' },
+                    { label: 'Pending', val: counts.pending, key: 'pending' },
+                    { label: 'Active', val: counts.inProgress, key: 'in-progress' },
+                    { label: 'Completed', val: counts.completed, key: 'completed' },
+                ].map(({ label, val, key }) => (
+                    <button key={key} onClick={() => setFilterStatus(key as any)}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${filterStatus === key ? 'bg-white shadow-sm dark:bg-gray-700/50' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70'
+                            }`} style={{ color: filterStatus === key ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                        {label}
+                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${filterStatus === key ? 'bg-blue-500/10 text-blue-500' : 'bg-black/10 dark:bg-white/10'}`}>
+                            {val}
+                        </span>
                     </button>
                 ))}
             </div>
 
-            {/* Form */}
-            {showForm && <NewWorkOrderForm onAdd={wo => setOrders(prev => [wo, ...prev])} onClose={() => setShowForm(false)} />}
-
-            {/* Orders */}
-            <div className="space-y-3">
+            {/* Orders Stack */}
+            <div className="space-y-4 animate-fade-up">
                 {filtered.map(wo => (
                     <WorkOrderCard
                         key={wo.id}
@@ -246,10 +299,14 @@ const WorkOrderManager: React.FC = () => {
                         onDelete={id => setOrders(prev => prev.filter(o => o.id !== id))}
                     />
                 ))}
+
                 {filtered.length === 0 && (
-                    <div className="text-center py-10 text-gray-400">
-                        <AlertCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No work orders found</p>
+                    <div className="card p-12 text-center flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
+                            <CheckCircle className="w-8 h-8 text-blue-500" />
+                        </div>
+                        <h4 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Queue empty</h4>
+                        <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>No work orders match the current filter.</p>
                     </div>
                 )}
             </div>

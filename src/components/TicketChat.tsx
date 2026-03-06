@@ -19,7 +19,7 @@ interface TicketChatProps {
     onClose?: () => void;
 }
 
-// ─── Simulated local messages (fallback when offline/API unavailable) ─────────
+// ─── Simulated local messages (fallback) ─────────
 function loadLocalMessages(reportId: string): ChatMessage[] {
     try {
         return JSON.parse(localStorage.getItem(`ticketChat_${reportId}`) || '[]');
@@ -44,35 +44,28 @@ const TicketChat: React.FC<TicketChatProps> = ({
 
     const displayName = currentUserName || (currentUserRole === 'citizen' ? 'You (Citizen)' : 'Staff');
 
-    // ── Load messages ─────────────────────────────────────────────────────────
     useEffect(() => {
         const load = async () => {
-            // First load from localStorage (instant)
             const local = loadLocalMessages(reportId);
             if (local.length > 0) setMessages(local);
-
-            // Then fetch from API
             try {
                 const res = await fetch(`${API_BASE}/api/reports/${reportId}/chat`);
                 if (res.ok) {
-                    const data: ChatMessage[] = await res.json();
+                    const data = await res.json();
                     setMessages(data);
                     saveLocalMessages(reportId, data);
                 }
-            } catch {
-                // Stay on local messages
-            }
+            } catch { }
         };
         load();
     }, [reportId]);
 
-    // ── Poll for new messages every 8s ────────────────────────────────────────
     useEffect(() => {
         const id = setInterval(async () => {
             try {
                 const res = await fetch(`${API_BASE}/api/reports/${reportId}/chat`);
                 if (res.ok) {
-                    const data: ChatMessage[] = await res.json();
+                    const data = await res.json();
                     setMessages(data);
                     saveLocalMessages(reportId, data);
                 }
@@ -81,12 +74,10 @@ const TicketChat: React.FC<TicketChatProps> = ({
         return () => clearInterval(id);
     }, [reportId]);
 
-    // ── Scroll to bottom on new messages ─────────────────────────────────────
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // ── Send ──────────────────────────────────────────────────────────────────
     const handleSend = async () => {
         const trimmed = text.trim();
         if (!trimmed) return;
@@ -116,31 +107,23 @@ const TicketChat: React.FC<TicketChatProps> = ({
                 body: JSON.stringify({ text: trimmed, fromRole: currentUserRole, senderName: displayName }),
             });
             if (res.ok) {
-                const saved: ChatMessage[] = await res.json();
+                const saved = await res.json();
                 setMessages(saved);
                 saveLocalMessages(reportId, saved);
             }
-        } catch {
-            // Keep the optimistic message
-        } finally {
+        } catch { } finally {
             setSending(false);
             inputRef.current?.focus();
         }
     };
 
     const formatTime = (iso: string) => {
-        try {
-            return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } catch { return ''; }
+        try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
     };
-
     const formatDate = (iso: string) => {
-        try {
-            return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
-        } catch { return ''; }
+        try { return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' }); } catch { return ''; }
     };
 
-    // Group messages with date separators ────────────────────────────────────
     const grouped: Array<ChatMessage | { type: 'date-separator'; date: string }> = [];
     let lastDate = '';
     for (const msg of messages) {
@@ -153,48 +136,49 @@ const TicketChat: React.FC<TicketChatProps> = ({
     }
 
     return (
-        <div className="flex flex-col bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl border border-gray-200 dark:border-gray-700" style={{ height: '420px', width: '100%', maxWidth: '400px' }}>
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex-shrink-0">
-                <div className="flex items-center gap-2 min-w-0">
-                    <MessageSquare className="w-4 h-4 flex-shrink-0" />
+        <div className="flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-[var(--border)] animate-scale-in" style={{ height: '480px', width: '100%', maxWidth: '420px', background: 'var(--bg-panel)' }}>
+            {/* Header - Heritage Themed */}
+            <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0 relative overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+                <div className="absolute inset-0 heritage-pattern opacity-30 pointer-events-none" />
+                <div className="relative z-10 flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" style={{ background: 'var(--accent)', color: 'white' }}>
+                        <MessageSquare className="w-5 h-5" />
+                    </div>
                     <div className="min-w-0">
-                        <p className="text-xs font-semibold leading-tight">Complaint Chat</p>
-                        {reportTitle && (
-                            <p className="text-[10px] text-blue-200 truncate">{reportTitle}</p>
-                        )}
+                        <p className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Official Comm Channel</p>
+                        {reportTitle && <p className="text-[11px] font-medium truncate" style={{ color: 'var(--accent)' }}>{reportTitle}</p>}
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="flex items-center gap-1 text-[10px] bg-white/20 rounded-full px-2 py-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                        Live
+                <div className="relative z-10 flex items-center gap-2 flex-shrink-0">
+                    <span className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-[var(--bg-base)] border border-[var(--border)] shadow-sm" style={{ color: 'var(--accent-green)' }}>
+                        <span className="w-2 h-2 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]" /> Live
                     </span>
                     {onClose && (
-                        <button onClick={onClose} className="hover:bg-white/20 rounded-full p-1 transition-colors">
-                            <X className="w-4 h-4" />
+                        <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center justify-center">
+                            <X className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+            {/* Messages Area - Parchment / Glass feel */}
+            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4" style={{ background: 'var(--bg-base)' }}>
                 {messages.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center px-6">
-                        <MessageSquare className="w-10 h-10 mb-3 opacity-30" />
-                        <p className="text-sm font-medium">No messages yet</p>
-                        <p className="text-xs mt-1">Start by sending a message. Your assigned staff member will be notified.</p>
+                    <div className="h-full flex flex-col items-center justify-center text-center px-6">
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 border border-dashed" style={{ borderColor: 'var(--border-strong)', background: 'var(--bg-elevated)' }}>
+                            <MessageSquare className="w-6 h-6 opacity-40" style={{ color: 'var(--text-primary)' }} />
+                        </div>
+                        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Secure Channel Open</p>
+                        <p className="text-[11px] mt-2 font-medium" style={{ color: 'var(--text-muted)' }}>Messages here are securely routed to the assigned municipal officer.</p>
                     </div>
                 )}
 
                 {grouped.map((item, i) => {
                     if ('type' in item && item.type === 'date-separator') {
                         return (
-                            <div key={`sep-${i}`} className="flex items-center gap-2 my-2">
-                                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap">{item.date}</span>
-                                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                            <div key={`sep-${i}`} className="flex justify-center my-6 relative">
+                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-strong)]" /></div>
+                                <div className="relative px-4 text-[10px] font-bold uppercase tracking-widest bg-[var(--bg-base)]" style={{ color: 'var(--text-faint)' }}>{item.date}</div>
                             </div>
                         );
                     }
@@ -205,8 +189,8 @@ const TicketChat: React.FC<TicketChatProps> = ({
 
                     if (isSystem) {
                         return (
-                            <div key={msg.id} className="flex justify-center my-1">
-                                <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+                            <div key={msg.id} className="flex justify-center my-3 relative z-10">
+                                <span className="text-[10px] font-bold uppercase tracking-widest px-4 py-1.5 rounded-full border shadow-sm" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
                                     {msg.text}
                                 </span>
                             </div>
@@ -214,64 +198,78 @@ const TicketChat: React.FC<TicketChatProps> = ({
                     }
 
                     return (
-                        <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} gap-2`}>
-                            {!isMine && (
-                                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0 mt-auto">
-                                    {msg.fromRole === 'staff'
-                                        ? <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                                        : <User className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
-                                    }
-                                </div>
-                            )}
-                            <div className={`max-w-[75%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
-                                {!isMine && msg.senderName && (
-                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 ml-1">
-                                        {msg.senderName}
-                                        {msg.fromRole === 'staff' && (
-                                            <span className="ml-1 text-blue-600 dark:text-blue-400 font-medium">• Staff</span>
-                                        )}
-                                    </span>
+                        <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} w-full relative group`}>
+                            <div className={`flex gap-3 max-w-[85%] ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+
+                                {/* Avatar */}
+                                {!isMine && (
+                                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-1 shadow-sm border border-[var(--border)]" style={{ background: 'var(--bg-panel)' }}>
+                                        {msg.fromRole === 'staff'
+                                            ? <ShieldCheck className="w-4 h-4" style={{ color: 'var(--accent-blue)' }} />
+                                            : <User className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                                        }
+                                    </div>
                                 )}
-                                <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed max-w-full break-words ${isMine
-                                        ? 'bg-blue-600 text-white rounded-br-sm'
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-sm'
-                                    }`}>
-                                    {msg.text}
+
+                                {/* Overlapping Parchment Message Bubble */}
+                                <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                                    {!isMine && msg.senderName && (
+                                        <span className="text-[10px] font-bold uppercase tracking-wider mb-1.5 ml-1" style={{ color: 'var(--text-muted)' }}>
+                                            {msg.senderName}
+                                            {msg.fromRole === 'staff' && <span className="ml-1 select-none" style={{ color: 'var(--accent-blue)' }}>• Official</span>}
+                                        </span>
+                                    )}
+
+                                    <div className="relative transition-transform duration-200 group-hover:-translate-y-0.5" style={{
+                                        padding: '12px 16px',
+                                        borderRadius: isMine ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                                        background: isMine ? 'var(--accent)' : 'var(--bg-panel)',
+                                        color: isMine ? '#ffffff' : 'var(--text-primary)',
+                                        boxShadow: isMine ? '0 4px 12px rgba(217, 75, 56, 0.2)' : 'var(--shadow-sm)',
+                                        border: isMine ? '1px solid rgba(255,255,255,0.1)' : '1px solid var(--border)',
+                                        position: 'relative',
+                                        zIndex: 10
+                                    }}>
+                                        <p className="text-[13px] font-medium leading-relaxed tracking-wide break-words">{msg.text}</p>
+                                    </div>
+
+                                    <span className={`text-[9px] font-bold tracking-wider mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'mr-1' : 'ml-1'}`} style={{ color: 'var(--text-faint)' }}>
+                                        {formatTime(msg.timestamp)}
+                                        {isMine && <span className="ml-1" style={{ color: msg.read ? 'var(--accent-blue)' : 'inherit' }}>{msg.read ? '✓✓' : '✓'}</span>}
+                                    </span>
                                 </div>
-                                <span className={`text-[10px] text-gray-400 mt-0.5 ${isMine ? 'mr-1' : 'ml-1'}`}>
-                                    {formatTime(msg.timestamp)}
-                                    {isMine && <span className="ml-1">{msg.read ? '✓✓' : '✓'}</span>}
-                                </span>
+
                             </div>
                         </div>
                     );
                 })}
-                <div ref={bottomRef} />
+                <div ref={bottomRef} className="h-1" />
             </div>
 
-            {/* Input */}
-            <div className="px-3 py-3 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
-                <div className="flex gap-2 items-end">
+            {/* Input Area */}
+            <div className="px-4 py-4 border-t flex-shrink-0" style={{ borderColor: 'var(--border-strong)', background: 'var(--bg-panel)' }}>
+                <div className="relative flex items-center shadow-inner rounded-xl border focus-within:ring-2 focus-within:border-transparent transition-all" style={{ borderColor: 'var(--border)', background: 'var(--bg-base)', '--tw-ring-color': 'var(--accent-subtle)' } as React.CSSProperties}>
                     <input
                         ref={inputRef}
                         type="text"
                         value={text}
                         onChange={e => setText(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                        placeholder="Type a message..."
-                        className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Originate secure reply..."
+                        className="flex-1 w-full bg-transparent px-4 py-3.5 text-sm font-medium focus:outline-none"
+                        style={{ color: 'var(--text-primary)' }}
                     />
-                    <button
-                        onClick={handleSend}
-                        disabled={!text.trim() || sending}
-                        className="w-9 h-9 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-colors"
-                    >
-                        <Send className="w-4 h-4" />
-                    </button>
+                    <div className="pr-2 pl-1 flex items-center">
+                        <button
+                            onClick={handleSend}
+                            disabled={!text.trim() || sending}
+                            className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:hover:scale-100 hover:scale-105 active:scale-95 shadow-md"
+                            style={{ background: 'var(--accent)', color: 'white' }}
+                        >
+                            <Send className="w-4 h-4 ml-0.5" />
+                        </button>
+                    </div>
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1 text-center">
-                    End-to-end encrypted between citizen and assigned staff
-                </p>
             </div>
         </div>
     );
