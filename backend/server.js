@@ -1,77 +1,141 @@
-﻿const express = require('express');
+const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 require('dotenv').config();
 
 const User = require('./models/User');
 const Report = require('./models/Report');
 const Stats = require('./models/Stats');
-const { Conversation, Message } = require('./models/Chat');
-const Friendship = require('./models/Friendship');
+const { Thread, ThreadMessage } = require('./models/Thread');
+const WorkflowEvent = require('./models/WorkflowEvent');
+const SLA = require('./models/SLA');
 const Notification = require('./models/Notification');
-const snSync = require('./servicenow-sync');
+
+// Chat models
+const Conversation = mongoose.model('Conversation', new mongoose.Schema({
+  participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  lastMessage: String,
+  lastMessageAt: Date,
+  createdAt: { type: Date, default: Date.now }
+}));
+
+const ChatMessage = mongoose.model('ChatMessage', new mongoose.Schema({
+  conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
+  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  content: String,
+  read: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now }
+}));
 
 const app = express();
-const PORT = process.env.PORT || 5005;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
   origin: '*',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Real-time upload progress logging middleware
+app.use((req, res, next) => {
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    let receivedBytes = 0;
+    const contentLength = parseInt(req.headers['content-length'] || '0');
+    
+    if (contentLength > 0) {
+      console.log(`\n📥 [${new Date().toISOString()}] Incoming ${req.method} ${req.path}`);
+      console.log(`📦 Expected payload size: ${(contentLength / 1024).toFixed(2)} KB`);
+      
+      req.on('data', (chunk) => {
+        receivedBytes += chunk.length;
+        const width = 30;
+        const percentage = Math.floor((receivedBytes / contentLength) * 100);
+        const progress = Math.floor((receivedBytes / contentLength) * width);
+        const bar = '━'.repeat(progress) + '─'.repeat(width - progress);
+        const sizeStr = `${(receivedBytes / 1024 / 1024).toFixed(2)}MB / ${(contentLength / 1024 / 1024).toFixed(2)}MB`;
+        
+        process.stdout.write(`\r \x1b[32m${bar}\x1b[0m \x1b[1m${percentage}%\x1b[0m | ${sizeStr} | \x1b[90mReceiving Data\x1b[0m`);
+      });
+      
+      req.on('end', () => {
+        const sizeMB = (receivedBytes / 1024 / 1024).toFixed(2);
+        console.log(`\n \x1b[92m✅ Final Intake:\x1b[0m ${sizeMB} MB received successfully.\n`);
+      });
+    }
+  }
+  next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// MongoDB Connection with automatic retry and fallback
+// ─────────────────────────────── Multer Configuration ──────────────────────────
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + '-' + file.originalname;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type: ${file.mimetype}`));
+    }
+  }
+});
+
+app.use('/uploads', express.static(uploadsDir));
+
+// MongoDB Connection
 const connectDB = async () => {
   const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/civic-reports';
-
   try {
     const conn = await mongoose.connect(mongoURI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
     });
-    console.log(`âœ… MongoDB Connected: ${conn.connection.host}`);
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     return true;
   } catch (error) {
-    console.error('âŒ MongoDB connection error:', error.message);
-    console.log('ðŸ’¡ MongoDB not available. Server will run with limited functionality.');
-    console.log('ðŸ“‹ To fix: Install MongoDB or use MongoDB Atlas cloud database');
+    console.error('❌ MongoDB connection error:', error.message);
     return false;
   }
 };
 
-mongoose.connection.on('disconnected', () => {
-  console.log('âš ï¸ MongoDB disconnected. Attempting to reconnect...');
-});
-mongoose.connection.on('reconnected', () => {
-  console.log('âœ… MongoDB reconnected');
-});
-
 let dbConnected = false;
-connectDB().then(connected => {
-  dbConnected = connected;
-  if (!connected) console.log('âš ï¸  Running in demo mode without database');
-});
+connectDB().then(connected => { dbConnected = connected; });
 
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
   res.json({
     status: 'ok',
-    database: dbStatus,
-    mongodb_available: dbConnected,
-    demo_mode: !dbConnected,
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString()
   });
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Auth Middleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────── Auth Middleware ─────────────────────────────
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -102,118 +166,22 @@ const requireRole = (roles) => (req, res, next) => {
   next();
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Auth Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-// ===== Google OAuth =====
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-const GOOGLE_REDIRECT = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5005';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000/SIH/';
-
-app.get('/auth/google', (req, res) => {
-  if (!GOOGLE_CLIENT_ID) {
-    return res.redirect(FRONTEND_URL + '?error=google_not_configured');
-  }
-  const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: GOOGLE_REDIRECT,
-    response_type: 'code',
-    scope: 'openid email profile',
-    access_type: 'offline',
-    prompt: 'select_account'
-  });
-  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + params.toString());
-});
-
-// Google OAuth callback at root GET /
-// Google must be configured with redirect URI: http://localhost:5005
-app.get('/', async (req, res) => {
-  const { code, error } = req.query;
-  // Only handle if Google sent us a code
-  if (!code && !error) {
-    return res.json({ status: 'ok', message: 'Backend running' });
-  }
-  if (error || !code) {
-    return res.redirect(FRONTEND_URL + '?error=google_denied');
-  }
-  try {
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code, client_id: GOOGLE_CLIENT_ID,
-        client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: GOOGLE_REDIRECT,
-        grant_type: 'authorization_code'
-      }).toString()
-    });
-    const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) throw new Error('No access_token from Google');
-
-    const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: 'Bearer ' + tokenData.access_token }
-    });
-    const profile = await profileRes.json();
-
-    let user = await User.findOne({ email: profile.email });
-    if (!user) {
-      const crypto = require('crypto');
-      const username = (profile.name || 'user').replace(/\s+/g, '').toLowerCase().slice(0, 15)
-        + '_' + Date.now().toString().slice(-4);
-      user = new User({
-        username, email: profile.email,
-        password: crypto.randomBytes(24).toString('hex'),
-        role: 'citizen', isApproved: true, isVerified: true
-      });
-      await user.save();
-    }
-
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || 'fallback_secret'
-    );
-
-    const userJson = encodeURIComponent(JSON.stringify({
-      id: user._id, username: user.username,
-      email: user.email, role: user.role, isApproved: user.isApproved
-    }));
-    res.redirect(FRONTEND_URL + '?auth_token=' + token + '&user=' + userJson);
-  } catch (err) {
-    console.error('Google OAuth error:', err.message);
-    res.redirect(FRONTEND_URL + '?error=google_failed');
-  }
-});
-
+// ─────────────────────────────── Auth Routes ─────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, email, password, role, departmentId, phoneNumber, address } = req.body;
-
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) return res.status(400).json({ error: 'User already exists' });
 
     const user = new User({ username, email, password, role, departmentId, phoneNumber, address });
     await user.save();
 
-    // Sync new citizen to ServiceNow
-    snSync.pushCitizen(user).catch(e => console.warn('[SN Sync] register push failed:', e.message));
-
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || 'fallback_secret'
-    );
-
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET || 'fallback_secret');
     res.status(201).json({
       token,
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        isApproved: user.isApproved,
-        isActive: user.isActive,
-        isVerified: user.isVerified,
-        reputationPoints: user.reputationPoints,
-        level: user.level
+        id: user._id, username: user.username, email: user.email, role: user.role,
+        isApproved: user.isApproved, isActive: user.isActive
       }
     });
   } catch (error) {
@@ -224,41 +192,22 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-
     if (!user.isApproved && user.role !== 'citizen') {
       return res.status(403).json({ error: 'Account pending approval' });
     }
 
-    // Update lastLoginAt and reset failed attempts
-    await User.findByIdAndUpdate(user._id, {
-      lastLoginAt: new Date(),
-      failedLoginAttempts: 0
-    });
-
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || 'fallback_secret'
-    );
+    await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date(), failedLoginAttempts: 0 });
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET || 'fallback_secret');
 
     res.json({
       token,
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        departmentId: user.departmentId,
-        isApproved: user.isApproved,
-        isActive: user.isActive,
-        isVerified: user.isVerified,
-        reputationPoints: user.reputationPoints,
-        level: user.level,
-        badges: user.badges
+        id: user._id, username: user.username, email: user.email, role: user.role,
+        departmentId: user.departmentId, isApproved: user.isApproved
       }
     });
   } catch (error) {
@@ -266,148 +215,113 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Report Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-app.post('/api/reports', optionalAuth, async (req, res) => {
+// ─────────────────────────────── Report Routes ───────────────────────────────
+app.post('/api/reports', upload.array('images', 10), optionalAuth, async (req, res) => {
   try {
-    console.log('POST /api/reports - Request body:', req.body);
-
-    if (!req.body.title || !req.body.description || !req.body.category) {
-      return res.status(400).json({ error: 'Missing required fields: title, description, category' });
+    console.log(`\n📝 Processing report submission...`);
+    console.log(`📦 Multipart payload size: ${req.headers['content-length'] || 'unknown'} bytes`);
+    console.log(`🖼️ Files received: ${req.files?.length || 0}`);
+    
+    if (req.files && req.files.length > 0) {
+      const totalFileSize = req.files.reduce((sum, file) => sum + file.size, 0);
+      console.log(`📊 Total file size: ${(totalFileSize / 1024 / 1024).toFixed(2)} MB`);
+      req.files.forEach((file, idx) => {
+        console.log(`   [${idx + 1}] ${file.originalname} (${(file.size / 1024).toFixed(2)} KB) → /uploads/${file.filename}`);
+      });
     }
 
-    // Ensure a reportedBy user exists (anonymous fallback)
+    let reportData = { ...req.body };
+    
+    if (reportData.location && typeof reportData.location === 'string') {
+      try {
+        reportData.location = JSON.parse(reportData.location);
+      } catch (e) {
+        console.warn('⚠️ Could not parse location JSON');
+      }
+    }
+    
+    if (reportData.isAnonymous === 'true') reportData.isAnonymous = true;
+    if (reportData.isAnonymous === 'false') reportData.isAnonymous = false;
+    
+    if (reportData.latitude) reportData.latitude = parseFloat(reportData.latitude);
+    if (reportData.longitude) reportData.longitude = parseFloat(reportData.longitude);
+    if (reportData.aiConfidenceScore) reportData.aiConfidenceScore = parseFloat(reportData.aiConfidenceScore);
+    if (reportData.upvotes) reportData.upvotes = parseInt(reportData.upvotes);
+    if (reportData.downvotes) reportData.downvotes = parseInt(reportData.downvotes);
+    if (reportData.views) reportData.views = parseInt(reportData.views);
+    
+    const imageUrls = req.files?.map(file => `/uploads/${file.filename}`) || [];
+    
     let reportedBy = req.user?.userId;
     if (!reportedBy) {
       let anonymousUser = await User.findOne({ username: 'anonymous' });
       if (!anonymousUser) {
         anonymousUser = await new User({
-          username: 'anonymous',
-          email: 'anonymous@system.local',
-          password: 'anonymous123',
-          role: 'citizen'
+          username: 'anonymous', email: 'anonymous@system.local',
+          password: 'anonymous123', role: 'citizen'
         }).save();
       }
       reportedBy = anonymousUser._id;
     }
 
-    // Normalise location fields â€” support both old nested shape and new flat shape
-    const locationAddress =
-      req.body.locationAddress ||
-      req.body.location?.address ||
-      'Unknown';
-    const latitude =
-      req.body.latitude ??
-      req.body.location?.coordinates?.latitude ??
-      23.3441;
-    const longitude =
-      req.body.longitude ??
-      req.body.location?.coordinates?.longitude ??
-      85.3096;
-
-    // Normalise AI analysis â€” support old aiAnalysis object and new flat fields
-    const ai = req.body.aiAnalysis || {};
-    const aiDetectedCategory = req.body.aiDetectedCategory || ai.category || null;
-    const aiSeverityPrediction = req.body.aiSeverityPrediction || ai.priority || null;
-    const aiConfidenceScore = req.body.aiConfidenceScore ?? ai.confidence ?? null;
-    const aiRecommendation = req.body.aiRecommendation || ai.description || null;
-    const aiModelVersion = req.body.aiModelVersion || null;
-
-    // Department routing — maps legacy/AI department names to CSV category names
-    const departmentMapping = {
-      'Roads Department': 'Roads & Infrastructure',
-      'Water Department': 'Water Services',
-      'Electricity Department': 'Electricity Services',
-      'Electricity': 'Electricity Services',  // legacy name normalisation
-      'Waste Department': 'Waste Management',
-      'Parks Department': 'Parks & Recreation',
-      'Safety Department': 'Public Safety',
-      'Infrastructure Failure Department': 'Roads & Infrastructure',
-      'Utility Failure Department': 'Electricity Services',
-      'Water System Failure Department': 'Water Services',
-      'Fire Hazard Department': 'Public Safety',
-      'Flood/Water Hazard Department': 'Water Services',
-      'Environmental Contamination Department': 'Public Safety',
-      'Transport Department': 'Public Transport Operations',
-      'Parking Department': 'Parking Administration',
-      'Land Department': 'Estate and Land Management',
-      'Grievance Department': 'Public Grievance Redressal',
-      'Parks & Recreation': 'Parks & Recreation',
-    };
-
-    let departmentId = req.body.departmentId || req.body.department || req.body.category;
-    if (departmentMapping[departmentId]) departmentId = departmentMapping[departmentId];
-
-    const reportData = {
-      title: req.body.title,
-      description: req.body.description,
-      domain: req.body.domain || null,
-      category: req.body.category,
-      subCategory: req.body.subCategory || null,
-      departmentId,
+    const finalReportData = {
+      ...reportData,
+      images: imageUrls,
       reportedBy,
-      wardId: req.body.wardId || null,
-      zoneId: req.body.zoneId || null,
-      municipalityId: req.body.municipalityId || null,
-      locationAddress,
-      latitude,
-      longitude,
-      impact: req.body.impact || 'medium',
-      urgency: req.body.urgency || 'medium',
-      priority: req.body.priority || (aiConfidenceScore > 0.8 ? 'high' : 'medium'),
-      status: req.body.status || 'open',
-      images: req.body.images || [],
-      attachments: req.body.attachments || [],
-      isAnonymous: req.body.isAnonymous || false,
-      aiDetectedCategory,
-      aiSeverityPrediction,
-      aiConfidenceScore,
-      aiRecommendation,
-      aiModelVersion
+      status: 'reported',
+      locationAddress: reportData.locationAddress || reportData.location?.address || 'Unknown',
+      latitude: reportData.latitude ?? reportData.location?.coordinates?.latitude ?? 23.3441,
+      longitude: reportData.longitude ?? reportData.location?.coordinates?.longitude ?? 85.3096
     };
 
-    console.log('Creating report with data:', reportData);
-    const report = new Report(reportData);
+    console.log(`📦 Saving report to database...`);
+    const report = new Report(finalReportData);
     await report.save();
-    console.log('Report saved with ID:', report._id, '| Ticket:', report.ticketNumber);
+    console.log(`✅ Report saved successfully with ID: ${report._id}`);
+    console.log(`📸 Images stored: ${imageUrls.length}`);
 
-    // Initial timeline entry
-    let timelineNote = 'Initial report submission';
-    if (departmentId) timelineNote += ` - routed to ${departmentId}`;
-    if (aiConfidenceScore) timelineNote += ` (AI confidence: ${(aiConfidenceScore * 100).toFixed(1)}%)`;
+    await new Thread({ reportId: report._id, participantIds: [reportedBy] }).save();
 
-    report.timeline.push({ action: 'Report created', user: reportedBy, notes: timelineNote });
-    await report.save();
+    const now = new Date();
+    await new SLA({
+      reportId: report._id,
+      acknowledgeDeadline: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+      resolutionDeadline: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    }).save();
 
-    // Sync new report to ServiceNow (non-blocking)
-    snSync.pushReport(report).catch(e => console.warn('[SN Sync] report push failed:', e.message));
+    await new WorkflowEvent({
+      reportId: report._id,
+      toStatus: 'reported',
+      performedBy: reportedBy,
+      notes: 'Initial report submission'
+    }).save();
 
     await updateStats();
-    console.log('Stats updated after report creation');
-
+    console.log(`📤 Sending response back to client...\n`);
     res.status(201).json(report);
   } catch (error) {
-    console.error('POST /api/reports error:', error);
+    console.error(`❌ Error creating report:`, error.message);
+    
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const filePath = path.join(uploadsDir, file.filename);
+        fs.unlink(filePath, (err) => {
+          if (err) console.error(`Failed to delete file: ${file.filename}`);
+        });
+      });
+    }
+    
     res.status(500).json({ error: error.message });
   }
 });
 
 app.get('/api/reports', optionalAuth, async (req, res) => {
   try {
-    const { status, category, departmentId, department, filter: filterType } = req.query;
+    const { status, category, departmentId } = req.query;
     let filter = {};
-    let sort = { updatedAt: -1, createdAt: -1 };
-
     if (status) filter.status = status;
     if (category) filter.category = category;
-    if (departmentId || department) filter.departmentId = departmentId || department;
-
-    if (filterType === 'trending') {
-      sort = { upvotes: -1, views: -1, updatedAt: -1 };
-    } else if (filterType === 'recent') {
-      sort = { createdAt: -1 };
-    } else if (filterType === 'updated') {
-      sort = { updatedAt: -1 };
-    }
+    if (departmentId) filter.departmentId = departmentId;
 
     if (req.user && req.user.role === 'department_admin') {
       const user = await User.findById(req.user.userId);
@@ -415,22 +329,18 @@ app.get('/api/reports', optionalAuth, async (req, res) => {
     }
 
     const reports = await Report.find(filter)
-      .populate('reportedBy', 'username email reputationPoints level')
+      .populate('reportedBy', 'username email')
       .populate('assignedTo', 'username email')
-      .sort(sort);
+      .sort({ updatedAt: -1 });
 
-    console.log(`Reports query: ${reports.length} reports found with filter:`, filter);
     res.json(reports);
   } catch (error) {
-    console.error('Reports fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/reports/user', optionalAuth, async (req, res) => {
+app.get('/api/reports/user', authenticateToken, async (req, res) => {
   try {
-    if (!req.user?.userId) return res.json({ reports: [] });
-
     const reports = await Report.find({ reportedBy: req.user.userId })
       .populate('reportedBy', 'username email')
       .populate('assignedTo', 'username email')
@@ -442,50 +352,83 @@ app.get('/api/reports/user', optionalAuth, async (req, res) => {
   }
 });
 
-app.put('/api/reports/:id/status', async (req, res) => {
+app.get('/api/reports/:id', async (req, res) => {
   try {
-    const { status, notes } = req.body;
-
-    const report = await Report.findById(req.params.id);
+    const report = await Report.findById(req.params.id)
+      .populate('reportedBy', 'username email')
+      .populate('assignedTo', 'username email');
     if (!report) return res.status(404).json({ error: 'Report not found' });
-
-    report.status = status;
-    report.updatedAt = new Date();
-
-    // Stamp resolved / closed timestamps
-    if (status === 'resolved' && !report.resolvedAt) report.resolvedAt = new Date();
-    if (status === 'closed' && !report.closedAt) report.closedAt = new Date();
-
-    if (notes) {
-      report.timeline.push({ action: `Status changed to ${status}`, notes });
-    }
-
-    await report.save();
-    await updateStats();
-
-    // Sync status update to ServiceNow (non-blocking)
-    snSync.pushReport(report).catch(e => console.warn('[SN Sync] status push failed:', e.message));
-
-    res.json({ success: true, report });
+    res.json(report);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/reports/:id/assign', authenticateToken, requireRole(['department_admin', 'system_admin']), async (req, res) => {
+// ─────────────────────────────── Workflow Routes ─────────────────────────────
+app.put('/api/reports/:id/status', authenticateToken, async (req, res) => {
   try {
-    const { assignedTo, assignmentGroupId } = req.body;
-
+    const { status, notes } = req.body;
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ error: 'Report not found' });
 
-    report.assignedTo = assignedTo;
-    if (assignmentGroupId) report.assignmentGroupId = assignmentGroupId;
-    report.timeline.push({
-      action: 'Report assigned',
-      user: req.user.userId,
-      notes: `Assigned to user ${assignedTo}`
-    });
+    const oldStatus = report.status;
+    report.status = status;
+    report.updatedAt = new Date();
+
+    if (status === 'acknowledged' && !report.acknowledgedAt) {
+      report.acknowledgedAt = new Date();
+      const sla = await SLA.findOne({ reportId: report._id });
+      if (sla) {
+        sla.acknowledgedAt = new Date();
+        await sla.save();
+      }
+    }
+    if (status === 'resolved' && !report.resolvedAt) {
+      report.resolvedAt = new Date();
+      const sla = await SLA.findOne({ reportId: report._id });
+      if (sla) {
+        sla.resolvedAt = new Date();
+        await sla.save();
+      }
+    }
+    if (status === 'closed' && !report.closedAt) report.closedAt = new Date();
+
+    await report.save();
+
+    await new WorkflowEvent({
+      reportId: report._id,
+      fromStatus: oldStatus,
+      toStatus: status,
+      performedBy: req.user.userId,
+      notes
+    }).save();
+
+    await updateStats();
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/reports/:id/history', async (req, res) => {
+  try {
+    const events = await WorkflowEvent.find({ reportId: req.params.id })
+      .populate('performedBy', 'username email')
+      .sort({ createdAt: -1 });
+    res.json(events);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/reports/:id/vote', optionalAuth, async (req, res) => {
+  try {
+    const { vote } = req.body;
+    const report = await Report.findById(req.params.id);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+
+    if (vote === 'up') report.upvotes = (report.upvotes || 0) + 1;
+    else if (vote === 'down') report.downvotes = (report.downvotes || 0) + 1;
 
     await report.save();
     res.json(report);
@@ -494,17 +437,130 @@ app.put('/api/reports/:id/assign', authenticateToken, requireRole(['department_a
   }
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ User Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-app.get('/api/users', async (req, res) => {
+app.delete('/api/reports/:id', authenticateToken, requireRole(['system_admin', 'department_admin']), async (req, res) => {
   try {
-    const users = await User.find().select('-password');
-    res.json(users);
+    const report = await Report.findById(req.params.id);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+
+    if (report.images && report.images.length > 0) {
+      report.images.forEach(imageUrl => {
+        const filename = imageUrl.split('/').pop();
+        const filePath = path.join(uploadsDir, filename);
+        fs.unlink(filePath, (err) => {
+          if (err) console.error(`Failed to delete file: ${filename}`);
+        });
+      });
+    }
+
+    await Thread.deleteMany({ reportId: report._id });
+    await ThreadMessage.deleteMany({ threadId: { $in: await Thread.find({ reportId: report._id }).select('_id') } });
+    await WorkflowEvent.deleteMany({ reportId: report._id });
+    await SLA.deleteMany({ reportId: report._id });
+    await Report.findByIdAndDelete(req.params.id);
+
+    await updateStats();
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/users/public', async (req, res) => {
+app.put('/api/reports/:id/assign', authenticateToken, requireRole(['department_admin', 'system_admin']), async (req, res) => {
+  try {
+    const { assignedTo } = req.body;
+    const report = await Report.findById(req.params.id);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+
+    report.assignedTo = assignedTo;
+    if (report.status === 'reported') report.status = 'assigned';
+    await report.save();
+
+    await new WorkflowEvent({
+      reportId: report._id,
+      fromStatus: report.status,
+      toStatus: 'assigned',
+      performedBy: req.user.userId,
+      notes: `Assigned to user ${assignedTo}`
+    }).save();
+
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────── Thread Routes ───────────────────────────────
+app.get('/api/threads/:reportId', async (req, res) => {
+  try {
+    let thread = await Thread.findOne({ reportId: req.params.reportId });
+    if (!thread) {
+      thread = await new Thread({ reportId: req.params.reportId, participantIds: [] }).save();
+    }
+    res.json(thread);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/threads/:reportId/messages', async (req, res) => {
+  try {
+    const thread = await Thread.findOne({ reportId: req.params.reportId });
+    if (!thread) return res.json([]);
+
+    const messages = await ThreadMessage.find({ threadId: thread._id })
+      .populate('senderId', 'username email profileImageUrl')
+      .sort({ createdAt: 1 });
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/threads/:reportId/messages', optionalAuth, async (req, res) => {
+  try {
+    const { content, attachments, isAnonymous } = req.body;
+    let thread = await Thread.findOne({ reportId: req.params.reportId });
+    if (!thread) {
+      thread = await new Thread({ reportId: req.params.reportId, participantIds: [] }).save();
+    }
+
+    const senderType = req.user?.role === 'department_admin' || req.user?.role === 'system_admin' ? 'authority' : 'citizen';
+    const senderId = isAnonymous ? null : req.user?.userId;
+
+    const message = await new ThreadMessage({
+      threadId: thread._id,
+      senderType,
+      senderId,
+      content,
+      attachments: attachments || []
+    }).save();
+
+    thread.lastMessageAt = new Date();
+    if (senderId && !thread.participantIds.includes(senderId)) {
+      thread.participantIds.push(senderId);
+    }
+    await thread.save();
+
+    await message.populate('senderId', 'username email profileImageUrl');
+    res.status(201).json(message);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────── SLA Routes ──────────────────────────────────
+app.get('/api/sla/:reportId', async (req, res) => {
+  try {
+    const sla = await SLA.findOne({ reportId: req.params.reportId });
+    if (!sla) return res.status(404).json({ error: 'SLA not found' });
+    res.json(sla);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────── User Management ─────────────────────────────
+app.get('/api/users', async (req, res) => {
   try {
     const users = await User.find().select('-password');
     res.json(users);
@@ -515,635 +571,176 @@ app.get('/api/users/public', async (req, res) => {
 
 app.put('/api/users/:id/approve', authenticateToken, requireRole(['system_admin']), async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { isApproved: true },
-      { new: true }
-    ).select('-password');
+    const user = await User.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true }).select('-password');
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/users/:id/role', async (req, res) => {
+app.put('/api/users/:id/role', authenticateToken, requireRole(['system_admin']), async (req, res) => {
   try {
-    const { role } = req.body;
-    await User.findByIdAndUpdate(req.params.id, { role });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update role' });
-  }
-});
+    const { role, department } = req.body;
+    const updateData = { role };
+    if (department) updateData.departmentId = department;
 
-app.put('/api/users/:id/department', async (req, res) => {
-  try {
-    const { departmentId } = req.body;
-    await User.findByIdAndUpdate(req.params.id, { departmentId });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update department' });
-  }
-});
-
-app.put('/api/users/:id/ban', async (req, res) => {
-  try {
-    const { banned, reason } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { banned: banned ?? true },
-      { new: true }
-    ).select('-password');
-
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ success: true, user });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to ban user' });
-  }
-});
-
-// Get user profile
-app.get('/api/users/profile', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.userId).select('-password');
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true }).select('-password');
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update user profile (top-level fields)
-app.put('/api/users/profile', authenticateToken, async (req, res) => {
-  try {
-    const { phoneNumber, address, profileImageUrl } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.user.userId,
-      { phoneNumber, address, profileImageUrl, updatedAt: Date.now() },
-      { new: true }
-    ).select('-password');
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Voting Route â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-app.post('/api/reports/:id/vote', authenticateToken, async (req, res) => {
-  try {
-    const { vote } = req.body; // 'up' or 'down'
-    const report = await Report.findById(req.params.id);
-    if (!report) return res.status(404).json({ error: 'Report not found' });
-
-    const userId = req.user.userId.toString();
-
-    // Remove previous vote by this user
-    report.uniqueVoterIds = report.uniqueVoterIds.filter(v => !v.startsWith(userId));
-
-    // Record new vote: stored as "userId:up" or "userId:down"
-    report.uniqueVoterIds.push(`${userId}:${vote}`);
-
-    // Recount
-    report.upvotes = report.uniqueVoterIds.filter(v => v.endsWith(':up')).length;
-    report.downvotes = report.uniqueVoterIds.filter(v => v.endsWith(':down')).length;
-
-    // Engagement
-    report.engagementScore = report.upvotes - report.downvotes;
-    report.trending = report.upvotes > 5;
-
-    // Award reputation point to report author on upvote
-    if (vote === 'up') {
-      await User.findByIdAndUpdate(report.reportedBy, {
-        $inc: { reputationPoints: 1 }
-      });
-    }
-
-    await report.save();
-    res.json(report);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Comments Route â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-app.post('/api/reports/:id/comments', authenticateToken, async (req, res) => {
-  try {
-    const { text } = req.body;
-    const report = await Report.findById(req.params.id);
-    if (!report) return res.status(404).json({ error: 'Report not found' });
-
-    report.comments.push({ user: req.user.userId, text });
-    await report.save();
-    await report.populate('comments.user', 'username profileImageUrl');
-    res.json(report);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────── Stats ───────────────────────────────────────
 const updateStats = async () => {
   try {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfWeek = new Date(startOfToday); startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
-    const [
-      totalReports,
-      reportsToday,
-      reportsThisWeek,
-      reportsThisMonth,
-      reportsLastMonth,
-      highPriorityCount,
-      mediumPriorityCount,
-      lowPriorityCount,
-      activeUsers,
-      totalComments,
-      allReports
-    ] = await Promise.all([
+    const [totalReports, reportsToday, allReports] = await Promise.all([
       Report.countDocuments(),
       Report.countDocuments({ createdAt: { $gte: startOfToday } }),
-      Report.countDocuments({ createdAt: { $gte: startOfWeek } }),
-      Report.countDocuments({ createdAt: { $gte: startOfMonth } }),
-      Report.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
-      Report.countDocuments({ priority: { $in: ['high', 'urgent'] } }),
-      Report.countDocuments({ priority: 'medium' }),
-      Report.countDocuments({ priority: 'low' }),
-      User.countDocuments({ isApproved: true, isActive: true }),
-      Report.aggregate([{ $project: { count: { $size: '$comments' } } }, { $group: { _id: null, total: { $sum: '$count' } } }]),
-      Report.find({}, 'status priority departmentId category wardId upvotes downvotes createdAt resolvedAt')
+      Report.find({}, 'status priority category createdAt resolvedAt')
     ]);
 
-    // Build breakdown maps
     const reportsByStatus = {};
     const reportsByPriority = {};
-    const reportsByDepartment = {};
     const reportsByCategory = {};
-    const reportsByWard = {};
-    let totalVotes = 0;
 
     allReports.forEach(r => {
       reportsByStatus[r.status] = (reportsByStatus[r.status] || 0) + 1;
       reportsByPriority[r.priority] = (reportsByPriority[r.priority] || 0) + 1;
-      if (r.departmentId) reportsByDepartment[r.departmentId] = (reportsByDepartment[r.departmentId] || 0) + 1;
       if (r.category) reportsByCategory[r.category] = (reportsByCategory[r.category] || 0) + 1;
-      if (r.wardId) reportsByWard[r.wardId] = (reportsByWard[r.wardId] || 0) + 1;
-      totalVotes += (r.upvotes || 0) + (r.downvotes || 0);
     });
 
-    // Growth rate (month-on-month)
-    const growthRate = reportsLastMonth > 0
-      ? parseFloat(((reportsThisMonth - reportsLastMonth) / reportsLastMonth * 100).toFixed(2))
-      : 0;
-
-    // Average resolution time (hours) for resolved reports
-    const resolvedReports = allReports.filter(r => r.resolvedAt && r.createdAt);
-    const averageResolutionTime = resolvedReports.length
-      ? parseFloat((resolvedReports.reduce((sum, r) => sum + (r.resolvedAt - r.createdAt) / 3600000, 0) / resolvedReports.length).toFixed(2))
-      : 0;
-
-    // Median resolution time
-    const sortedTimes = resolvedReports
-      .map(r => (r.resolvedAt - r.createdAt) / 3600000)
-      .sort((a, b) => a - b);
-    const medianResolutionTime = sortedTimes.length
-      ? parseFloat((sortedTimes.length % 2 === 0
-        ? (sortedTimes[sortedTimes.length / 2 - 1] + sortedTimes[sortedTimes.length / 2]) / 2
-        : sortedTimes[Math.floor(sortedTimes.length / 2)]).toFixed(2))
-      : 0;
-
-    // Top trending category
-    const topTrendingCategory = Object.entries(reportsByCategory)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-
-    const totalCommentsCount = totalComments[0]?.total || 0;
-
-    await Stats.findOneAndUpdate(
-      {},
-      {
-        totalReports,
-        reportsToday,
-        reportsThisWeek,
-        reportsThisMonth,
-        reportsLastMonth,
-        growthRate,
-        reportsByStatus,
-        reportsByPriority,
-        reportsByDepartment,
-        reportsByCategory,
-        reportsByWard,
-        highPriorityCount,
-        mediumPriorityCount,
-        lowPriorityCount,
-        overdueReports: 0,       // placeholder â€” requires SLA deadline logic
-        slaBreachedCount: 0,     // placeholder â€” requires SLA deadline logic
-        averageResponseTime: 0,  // placeholder â€” requires first-response timestamp
-        averageResolutionTime,
-        medianResolutionTime,
-        topTrendingCategory,
-        totalComments: totalCommentsCount,
-        totalVotes,
-        activeUsers,
-        lastUpdated: new Date()
-      },
-      { upsert: true, new: true }
-    );
+    await Stats.findOneAndUpdate({}, {
+      totalReports,
+      reportsToday,
+      reportsByStatus,
+      reportsByPriority,
+      reportsByCategory,
+      lastUpdated: new Date()
+    }, { upsert: true });
   } catch (error) {
     console.error('Stats update error:', error);
   }
-  // Push updated stats to ServiceNow after each recalculation
-  try {
-    const latestStats = await Stats.findOne();
-    if (latestStats) snSync.pushStats(latestStats).catch(e => console.warn('[SN Sync] stats push failed:', e.message));
-  } catch (_) { }
 };
 
 app.get('/api/stats/global', async (req, res) => {
   try {
     await updateStats();
-    let stats = await Stats.findOne();
-    if (!stats) {
-      stats = {
-        totalReports: 0,
-        reportsToday: 0,
-        reportsThisWeek: 0,
-        reportsThisMonth: 0,
-        activeUsers: 0,
-        reportsByStatus: {},
-        reportsByPriority: {}
-      };
-    }
+    const stats = await Stats.findOne() || { totalReports: 0, reportsToday: 0 };
     res.json(stats);
   } catch (error) {
-    console.error('Global stats error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Delete Report â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-app.delete('/api/reports/:id', optionalAuth, async (req, res) => {
+// ─────────────────────────────── Chat Routes ────────────────────────────────
+app.get('/api/chat/users', async (req, res) => {
   try {
-    const report = await Report.findById(req.params.id);
-    if (!report) return res.status(404).json({ error: 'Report not found' });
-
-    await Report.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Report deleted successfully', deletedId: req.params.id });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+    const users = await User.find().select('username email role');
+    res.json(users);
+  } catch { res.status(500).json({ error: 'Failed to load users' }); }
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Friends / Connections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-// Search all users + return friendship status relative to the requester
-app.get('/api/friends/search', async (req, res) => {
+app.get('/api/chat/conversations/:userId', async (req, res) => {
   try {
-    const { q = '', userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'userId required' });
+    const convs = await Conversation.find({ participants: req.params.userId })
+      .populate('participants', 'username email role')
+      .sort({ lastMessageAt: -1 });
+    
+    const result = await Promise.all(convs.map(async (c) => {
+      const unread = await ChatMessage.countDocuments({
+        conversationId: c._id,
+        senderId: { $ne: req.params.userId },
+        read: false
+      });
+      return { ...c.toObject(), unread };
+    }));
+    res.json(result);
+  } catch { res.json([]); }
+});
 
-    let uId;
-    try {
-      uId = new mongoose.Types.ObjectId(userId);
-    } catch {
-      return res.status(400).json({ error: 'invalid userId' });
+app.post('/api/chat/conversations', async (req, res) => {
+  try {
+    const { userId1, userId2 } = req.body;
+    let conv = await Conversation.findOne({
+      participants: { $all: [userId1, userId2] }
+    }).populate('participants', 'username email role');
+    
+    if (!conv) {
+      conv = await new Conversation({
+        participants: [userId1, userId2],
+        lastMessageAt: new Date()
+      }).save();
+      await conv.populate('participants', 'username email role');
     }
-
-    const filter = q.trim()
-      ? { _id: { $ne: uId }, $or: [{ username: { $regex: q, $options: 'i' } }, { email: { $regex: q, $options: 'i' } }] }
-      : { _id: { $ne: uId } };
-
-    const users = await User.find(filter, '_id username email role profileImageUrl').lean();
-
-    // Fetch all friendships involving this user
-    const friendships = await Friendship.find({
-      $or: [{ requester: userId }, { recipient: userId }]
-    }).lean();
-
-    const withStatus = users.map(u => {
-      const f = friendships.find(fs =>
-        fs.requester.toString() === u._id.toString() ||
-        fs.recipient.toString() === u._id.toString()
-      );
-      let friendStatus = 'none';
-      if (f) {
-        if (f.status === 'accepted') friendStatus = 'friends';
-        else if (f.status === 'pending') {
-          friendStatus = f.requester.toString() === userId ? 'sent' : 'received';
-        } else {
-          friendStatus = f.status; // rejected
-        }
-      }
-      return { ...u, friendStatus, friendshipId: f?._id || null };
-    });
-
-    res.json(withStatus);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json(conv);
+  } catch { res.status(500).json({ error: 'Failed to create conversation' }); }
 });
 
-// ─────────────────────────────── Notifications ──────────────────────────────
-
-// GET unread count
-app.get('/api/notifications/unread/:userId', async (req, res) => {
+app.delete('/api/chat/conversations/:id', async (req, res) => {
   try {
-    const count = await Notification.countDocuments({ userId: req.params.userId, read: false });
-    res.json({ count });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    await ChatMessage.deleteMany({ conversationId: req.params.id });
+    await Conversation.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed to delete' }); }
 });
 
-// GET all notifications for a user (latest 40)
+app.get('/api/chat/messages/:conversationId', async (req, res) => {
+  try {
+    const { since, userId } = req.query;
+    const filter = { conversationId: req.params.conversationId };
+    if (since) filter.createdAt = { $gt: new Date(since) };
+    
+    const msgs = await ChatMessage.find(filter)
+      .populate('senderId', 'username email')
+      .sort({ createdAt: 1 });
+    
+    if (userId) {
+      await ChatMessage.updateMany(
+        { conversationId: req.params.conversationId, senderId: { $ne: userId }, read: false },
+        { read: true }
+      );
+    }
+    res.json(msgs);
+  } catch { res.json([]); }
+});
+
+app.post('/api/chat/messages', async (req, res) => {
+  try {
+    const { conversationId, senderId, content } = req.body;
+    const msg = await new ChatMessage({ conversationId, senderId, content }).save();
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: content,
+      lastMessageAt: new Date()
+    });
+    await msg.populate('senderId', 'username email');
+    res.json(msg);
+  } catch { res.status(500).json({ error: 'Failed to send' }); }
+});
+
+// ─────────────────────────────── Notifications ───────────────────────────────
 app.get('/api/notifications/:userId', async (req, res) => {
   try {
     const notifs = await Notification.find({ userId: req.params.userId })
       .populate('fromUserId', 'username profileImageUrl')
       .sort({ createdAt: -1 })
-      .limit(40)
-      .lean();
+      .limit(40);
     res.json(notifs);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// PUT mark one as read
-app.put('/api/notifications/:id/read', async (req, res) => {
-  try {
-    await Notification.findByIdAndUpdate(req.params.id, { read: true });
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// Mark all notifications as read for a user
-app.put('/api/notifications/mark-all-read/:userId', async (req, res) => {
-  try {
-    await Notification.updateMany(
-      { userId: req.params.userId, read: false },
-      { $set: { read: true } }
-    );
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Clear all notifications for a user
-app.delete('/api/notifications/clear-all/:userId', async (req, res) => {
-  try {
-    await Notification.deleteMany({ userId: req.params.userId });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─────────────────────────────── Friends / Connections ───────────────────────
-
-// Send a friend request
-app.post('/api/friends/request', async (req, res) => {
-  try {
-    const { requesterId, recipientId } = req.body;
-    if (!requesterId || !recipientId) return res.status(400).json({ error: 'requesterId and recipientId required' });
-    if (requesterId === recipientId) return res.status(400).json({ error: 'Cannot friend yourself' });
-
-    const existing = await Friendship.findOne({
-      $or: [
-        { requester: requesterId, recipient: recipientId },
-        { requester: recipientId, recipient: requesterId }
-      ]
-    });
-    if (existing) return res.status(409).json({ error: 'Friendship already exists', status: existing.status });
-
-    const f = await new Friendship({ requester: requesterId, recipient: recipientId }).save();
-
-    // Notify recipient
-    const requester = await User.findById(requesterId, 'username').lean();
-    await new Notification({
-      userId: recipientId,
-      fromUserId: requesterId,
-      type: 'friend_request',
-      message: `${requester?.username || 'Someone'} sent you a friend request`,
-      meta: { friendshipId: f._id }
-    }).save();
-
-    res.status(201).json(f);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Accept a friend request
-app.put('/api/friends/:id/accept', async (req, res) => {
-  try {
-    const f = await Friendship.findById(req.params.id);
-    if (!f) return res.status(404).json({ error: 'Friendship not found' });
-
-    // Mark original friend request notification as handled
-    // (Do this first so even historically stuck clicks resolve themselves)
-    await Notification.updateMany(
-      { 'meta.friendshipId': f._id, type: 'friend_request', 'meta.handled': { $ne: true } },
-      { $set: { 'meta.handled': true, 'read': true } }
-    );
-
-    // Prevent duplicate accepts from creating multiple notifications
-    if (f.status === 'accepted') {
-      return res.json(f);
-    }
-
-    f.status = 'accepted';
-    await f.save();
-
-    // Notify requester that their request was accepted
-    const recipient = await User.findById(f.recipient, 'username').lean();
-    await new Notification({
-      userId: f.requester,
-      fromUserId: f.recipient,
-      type: 'friend_accepted',
-      message: `${recipient?.username || 'Someone'} accepted your friend request`,
-      meta: { friendshipId: f._id }
-    }).save();
-
-    res.json(f);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Reject / remove a friendship
-app.delete('/api/friends/:id', async (req, res) => {
-  try {
-    await Friendship.findByIdAndDelete(req.params.id);
-
-    // Mark original friend request notification as handled
-    await Notification.updateMany(
-      { 'meta.friendshipId': req.params.id, type: 'friend_request' },
-      { $set: { 'meta.handled': true, 'read': true } }
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get all accepted friends for a user
-app.get('/api/friends/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const friendships = await Friendship.find({
-      $or: [{ requester: userId }, { recipient: userId }],
-      status: 'accepted'
-    }).populate('requester recipient', 'username email role profileImageUrl').lean();
-
-    const friends = friendships.map(f => {
-      const friend = f.requester._id.toString() === userId ? f.recipient : f.requester;
-      return { ...friend, friendshipId: f._id };
-    });
-    res.json(friends);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Chat Routes (MongoDB only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// ServiceNow is never involved in any of these routes.
-
-// 1. Get all users available to chat with
-app.get('/api/chat/users', async (req, res) => {
-  try {
-    const users = await User.find({}, '_id username email role profileImageUrl').lean();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 2. Get all conversations for a user
-app.get('/api/chat/conversations/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const conversations = await Conversation.find({ participants: userId })
-      .populate('participants', 'username email role profileImageUrl')
-      .sort({ lastMessageAt: -1 })
-      .lean();
-
-    // Attach unread count for this user
-    const withUnread = await Promise.all(conversations.map(async (conv) => {
-      const unread = await Message.countDocuments({
-        conversationId: conv._id,
-        senderId: { $ne: userId },
-        read: false
-      });
-      return { ...conv, unread };
-    }));
-
-    res.json(withUnread);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 3. Create or retrieve an existing conversation between two users
-app.post('/api/chat/conversations', async (req, res) => {
-  try {
-    const { userId1, userId2 } = req.body;
-    if (!userId1 || !userId2) return res.status(400).json({ error: 'userId1 and userId2 required' });
-
-    // Look for an existing conversation with exactly these two participants
-    let conv = await Conversation.findOne({
-      participants: { $all: [userId1, userId2], $size: 2 }
-    }).populate('participants', 'username email role profileImageUrl');
-
-    if (!conv) {
-      conv = await new Conversation({ participants: [userId1, userId2] }).save();
-      conv = await conv.populate('participants', 'username email role profileImageUrl');
-    }
-
-    res.json(conv);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 4. Get messages in a conversation
-app.get('/api/chat/messages/:conversationId', async (req, res) => {
-  try {
-    const { conversationId } = req.params;
-    const { since } = req.query; // optional: ISO timestamp for polling
-
-    const filter = { conversationId };
-    if (since) filter.createdAt = { $gt: new Date(since) };
-
-    const msgs = await Message.find(filter)
-      .populate('senderId', 'username profileImageUrl')
-      .sort({ createdAt: 1 })
-      .lean();
-
-    res.json(msgs);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 5. Send a message
-app.post('/api/chat/messages', async (req, res) => {
-  try {
-    const { conversationId, senderId, content } = req.body;
-    if (!conversationId || !senderId || !content?.trim()) {
-      return res.status(400).json({ error: 'conversationId, senderId and content required' });
-    }
-
-    const msg = await new Message({ conversationId, senderId, content: content.trim() }).save();
-    await msg.populate('senderId', 'username profileImageUrl');
-
-    // Update the conversation snapshot
-    await Conversation.findByIdAndUpdate(conversationId, {
-      lastMessage: content.trim(),
-      lastMessageAt: new Date()
-    });
-
-    // Mark all previous messages from the OTHER user as read
-    await Message.updateMany(
-      { conversationId, senderId: { $ne: senderId }, read: false },
-      { read: true }
-    );
-
-    res.status(201).json(msg);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 6. Get total unread message count for a user
-app.get('/api/chat/unread/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    // Find all conversations the user is part of
-    const convos = await Conversation.find({ participants: userId }, '_id').lean();
-    const convoIds = convos.map(c => c._id);
-
-    // Count unread messages in those conversations NOT sent by the user
-    const count = await Message.countDocuments({
-      conversationId: { $in: convoIds },
-      senderId: { $ne: userId },
-      read: false
-    });
-
-    res.json({ count });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Proxies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────── Proxies ─────────────────────────────────────
 app.use('/ai-vision', createProxyMiddleware({
-  target: 'http://localhost:5007',
+  target: 'http://localhost:3001',
   changeOrigin: true,
   pathRewrite: { '^/ai-vision': '' },
-  onError: (err, req, res) => {
-    console.error('AI Vision proxy error:', err.message);
-    res.status(503).json({ error: 'AI Vision service unavailable' });
+  on: {
+    error: (err, req, res) => res.status(503).json({ error: 'AI Vision service unavailable' })
   }
 }));
 
@@ -1151,30 +748,44 @@ app.use('/speech', createProxyMiddleware({
   target: 'http://localhost:8000',
   changeOrigin: true,
   pathRewrite: { '^/speech': '' },
-  onError: (err, req, res) => {
-    console.error('Speech service proxy error:', err.message);
-    res.status(503).json({ error: 'Speech service unavailable' });
+  on: {
+    error: (err, req, res) => res.status(503).json({ error: 'Speech service unavailable' })
   }
 }));
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Static / Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────── Static ──────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
-  });
+  app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../dist/index.html')));
 }
-
-app.get('/logout', (req, res) => {
-  res.sendFile(path.join(__dirname, '../logout.html'));
-});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n=================================================================`);
-  console.log(`ðŸš€ Server running on port ${PORT}`);
-  console.log(`=================================================================`);
-  console.log(`ðŸ“¡ API Endpoints: http://localhost:${PORT}/api`);
-  console.log(`ðŸ¤– AI Vision: http://localhost:${PORT}/ai-vision`);
-  console.log(`ðŸŽ¤ Speech: http://localhost:${PORT}/speech`);
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`=================================================================\n`);
 });
+
+// ─────────────────────────────── SLA Background Job ──────────────────────────
+setInterval(async () => {
+  try {
+    const now = new Date();
+    const slas = await SLA.find({ slaStatus: { $ne: 'breached' } });
+    
+    for (const sla of slas) {
+      if (!sla.acknowledgedAt && now > sla.acknowledgeDeadline) {
+        sla.slaStatus = 'breached';
+        sla.breachReason = 'Acknowledgement deadline exceeded';
+        await sla.save();
+      } else if (!sla.resolvedAt && now > sla.resolutionDeadline) {
+        sla.slaStatus = 'breached';
+        sla.breachReason = 'Resolution deadline exceeded';
+        await sla.save();
+      } else if (now > new Date(sla.resolutionDeadline.getTime() - 24 * 60 * 60 * 1000)) {
+        sla.slaStatus = 'at_risk';
+        await sla.save();
+      }
+    }
+  } catch (error) {
+    console.error('SLA check error:', error);
+  }
+}, 60000);

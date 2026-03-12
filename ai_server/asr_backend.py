@@ -7,30 +7,51 @@ from fastapi.middleware.cors import CORSMiddleware
 from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
 from pydub import AudioSegment
 from io import BytesIO
+import os
+
+# Force NVIDIA GPU usage
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Use first NVIDIA GPU only
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"  # Debug GPU issues
 
 # --- Configuration ---
 MODEL_PATH = "./ai4bharatindicwav2vec-hindi"
 
-# Force NVIDIA GPU usage
+# Verify and force NVIDIA GPU
 if torch.cuda.is_available():
     torch.cuda.set_device(0)  # Force first NVIDIA GPU
     DEVICE = "cuda:0"
+    print("\n" + "="*50)
+    print("🚀 NVIDIA GPU DETECTED AND ACTIVE")
+    print("="*50)
+    print(f"✅ GPU Name: {torch.cuda.get_device_name(0)}")
+    print(f"✅ CUDA Version: {torch.version.cuda}")
+    print(f"✅ GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+    print(f"✅ Device: {DEVICE}")
+    print("="*50 + "\n")
 else:
-    raise RuntimeError("CUDA not available! Install: pip install torch --index-url https://download.pytorch.org/whl/cu118")
+    print("\n" + "="*50)
+    print("❌ CUDA NOT AVAILABLE!")
+    print("="*50)
+    print("Install PyTorch with CUDA support:")
+    print("pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118")
+    print("="*50 + "\n")
+    raise RuntimeError("CUDA not available! NVIDIA GPU required.")
 
 # --- Load Model ---
-print(f"Loading ASR model on device: {DEVICE}")
-print(f"GPU: {torch.cuda.get_device_name(0)}")
-print(f"CUDA Version: {torch.version.cuda}")
-print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
-
+print("Loading ASR model on NVIDIA GPU...")
 processor = Wav2Vec2Processor.from_pretrained(MODEL_PATH)
 model = Wav2Vec2ForCTC.from_pretrained(MODEL_PATH).to(DEVICE)
 model.eval()
 
 # Verify model is on GPU
-print(f"Model device: {next(model.parameters()).device}")
-print(f"Model loaded successfully on {DEVICE}")
+model_device = next(model.parameters()).device
+print("\n" + "="*50)
+print("✅ MODEL LOADED SUCCESSFULLY")
+print("="*50)
+print(f"✅ Model device: {model_device}")
+print(f"✅ Model parameters on GPU: {model_device.type == 'cuda'}")
+print(f"✅ Ready for inference on {DEVICE}")
+print("="*50 + "\n")
 
 # --- FastAPI App ---
 app = FastAPI()
@@ -77,10 +98,14 @@ async def transcribe(file: UploadFile = File(...)):
     # Preprocess for ASR model
     input_values = preprocess_audio(audio_array, sr).to(DEVICE)
 
-    # Inference
+    # Inference on NVIDIA GPU
     with torch.no_grad():
         logits = model(input_values).logits.cpu()
     predicted_ids = torch.argmax(logits, dim=-1)
     transcript = processor.batch_decode(predicted_ids)[0]
 
-    return {"transcript": transcript}
+    # Clear VRAM and RAM
+    torch.cuda.empty_cache()
+    gc.collect()
+
+    return {"transcript": transcript, "device": str(DEVICE)}

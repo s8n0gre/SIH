@@ -1,9 +1,0 @@
-@echo off
-echo Installing requirements...
-pip install torch torchvision transformers pillow flask flask-cors
-echo.
-echo Testing Google ViT Model...
-python test_vit.py
-echo.
-echo Starting ViT Server on port 5002...
-python vit_server.py

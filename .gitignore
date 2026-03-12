@@ -1,13 +1,164 @@
+# Dependencies
 node_modules/
-dist/
+*.egg-info/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
 venv/
-.env
-nemo_extracted/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# AI Models & Python Cache
-*.gguf
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+crash.log
+server_crash_log.txt
+build_log*.txt
+proxy_debug.log
+vision_server_debug.log
+llama.log
+llava.log
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+coverage/
+.nyc_output/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+
+# Test files (keep only if needed)
+test_*.py
+*_test.py
+
+# Batch files (startup scripts - keep only essential ones)
+*.bat
+!start.bat
+!setup.bat
+
+# Executables and binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.a
+*.lib
 *.bin
+*.mmproj
+*.weights
+
+# Model files (large, can be downloaded)
+*.gguf
 *.pt
 *.pth
-*.safetensors
-__pycache__/
+*.onnx
+ai_server/models/
+llama-b3600-bin-win-cuda-cu11.7.1-x64/
+
+# Cache
+.cache/
+*.cache
+.pytest_cache/
+.eslintcache
+
+# Misc
+=1.0.5
+*.csv
+*.html
+!index.html
+!logout.html
+!vit-tester.html
+gpu_test.html
+red_square.jpg
+sewage.jpg
+test.cu
+
+# Documentation (keep only essential)
+GPU-*.md
+AI-*.md
+DEPLOYMENT-*.md
+MIGRATION-GUIDE.md
+MOTION-SYSTEM.md
+RESPONSIVE-CHAT-*.md
+TYPOGRAPHY-SYSTEM.md
+UPLOAD-PROGRESS-TRACKING.md
+VISUAL-REFINEMENT-SUMMARY.md
+CHAT-SYSTEM.md
+QUICK-*.md
+STARTUP-GUIDE.md
+TROUBLESHOOTING.md
+ESSENTIAL-SERVERS.md
+README-MODELS.md
+PIPELINE_PROMPT.md
+MULTER_REFACTORING.md
+REPORT-WORKFLOW-GUIDE.md
+REPORTISSUEV2-TECHNICAL.md
+
+# Trash
+trash/
+
+# Project subdirectories (keep only main project)
+project/
+
+# Translator Android build
+Translator-Android/android/.gradle/
+Translator-Android/android/app/build/
+
+# Uploads
+backend/uploads/
+
+# Bolt config
+.bolt/

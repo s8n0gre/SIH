@@ -1,0 +1,74 @@
+/* Premium Mobile Scroll Slider */
+@media (max-width: 1024px) {
+  .mobile-scroll-container {
+    scrollbar-width: none; /* Hide native scrollbar in Firefox */
+    -ms-overflow-style: none; /* Hide native scrollbar in IE/Edge */
+    scroll-behavior: auto !important; /* CRITICAL: Prevents drag lag */
+  }
+  
+  .mobile-scroll-container::-webkit-scrollbar {
+    display: none; /* Hide native scrollbar in Chrome/Safari */
+  }
+
+  /* Track Styling */
+  .mobile-scroll-track {
+    background: transparent;
+    display: flex;
+    justify-content: center;
+    pointer-events: auto !important;
+  }
+
+  .track-line {
+    width: 2px;
+    height: 100%;
+    background: var(--border);
+    opacity: 0.3;
+    border-radius: 10px;
+    transition: opacity 0.2s ease;
+  }
+
+  .mobile-scroll-track:hover .track-line {
+    opacity: 0.6;
+  }
+
+  /* Handle Styling */
+  .mobile-scroll-handle {
+    background: var(--accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: width 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+    pointer-events: auto !important;
+    opacity: 0.7;
+  }
+
+  .mobile-scroll-handle:hover,
+  .mobile-scroll-handle.dragging {
+    width: 22px !important; /* Visual feedback: grows when grabbed */
+    opacity: 1;
+    cursor: grabbing;
+  }
+
+  .mobile-scroll-handle.dragging {
+    transform: scale(1.05);
+    background: var(--accent-strong, var(--accent));
+  }
+
+  /* Ensure content doesn't block scroll */
+  body, .mobile-scroll-container {
+    overscroll-behavior-y: none;
+  }
+
+  /* Accessibility/Touch Optimization */
+  .mobile-scroll-track, .mobile-scroll-handle {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none !important;
+  }
+}
+
+/* Hide on Desktop */
+@media (min-width: 1025px) {
+  .mobile-scroll-track,
+  .mobile-scroll-handle {
+    display: none !important;
+  }
+}

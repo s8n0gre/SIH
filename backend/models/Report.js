@@ -69,14 +69,19 @@ const reportSchema = new mongoose.Schema({
   },
 
   // Status & Assignment
-  status: { type: String, default: 'open' },
+  status: { 
+    type: String, 
+    enum: ['reported', 'acknowledged', 'assigned', 'in_progress', 'resolved', 'closed', 'open'], 
+    default: 'reported' 
+  },
   assignmentGroupId: { type: String },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
-  // SLA
+  // SLA (deprecated - use SLA model)
   slaId: { type: String },
   slaDeadline: { type: Date },
   escalationLevel: { type: Number, default: 0 },
+  acknowledgedAt: { type: Date },
 
   // Media
   images: [{ type: String }],
