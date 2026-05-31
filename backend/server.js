@@ -33,7 +33,7 @@ const ChatMessage = mongoose.model('ChatMessage', new mongoose.Schema({
 }));
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(cors({
@@ -48,11 +48,11 @@ app.use((req, res, next) => {
   if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
     let receivedBytes = 0;
     const contentLength = parseInt(req.headers['content-length'] || '0');
-    
+
     if (contentLength > 0) {
       console.log(`\n📥 [${new Date().toISOString()}] Incoming ${req.method} ${req.path}`);
       console.log(`📦 Expected payload size: ${(contentLength / 1024).toFixed(2)} KB`);
-      
+
       req.on('data', (chunk) => {
         receivedBytes += chunk.length;
         const width = 30;
@@ -60,10 +60,10 @@ app.use((req, res, next) => {
         const progress = Math.floor((receivedBytes / contentLength) * width);
         const bar = '━'.repeat(progress) + '─'.repeat(width - progress);
         const sizeStr = `${(receivedBytes / 1024 / 1024).toFixed(2)}MB / ${(contentLength / 1024 / 1024).toFixed(2)}MB`;
-        
+
         process.stdout.write(`\r \x1b[32m${bar}\x1b[0m \x1b[1m${percentage}%\x1b[0m | ${sizeStr} | \x1b[90mReceiving Data\x1b[0m`);
       });
-      
+
       req.on('end', () => {
         const sizeMB = (receivedBytes / 1024 / 1024).toFixed(2);
         console.log(`\n \x1b[92m✅ Final Intake:\x1b[0m ${sizeMB} MB received successfully.\n`);
@@ -221,7 +221,7 @@ app.post('/api/reports', upload.array('images', 10), optionalAuth, async (req, r
     console.log(`\n📝 Processing report submission...`);
     console.log(`📦 Multipart payload size: ${req.headers['content-length'] || 'unknown'} bytes`);
     console.log(`🖼️ Files received: ${req.files?.length || 0}`);
-    
+
     if (req.files && req.files.length > 0) {
       const totalFileSize = req.files.reduce((sum, file) => sum + file.size, 0);
       console.log(`📊 Total file size: ${(totalFileSize / 1024 / 1024).toFixed(2)} MB`);
@@ -231,7 +231,7 @@ app.post('/api/reports', upload.array('images', 10), optionalAuth, async (req, r
     }
 
     let reportData = { ...req.body };
-    
+
     if (reportData.location && typeof reportData.location === 'string') {
       try {
         reportData.location = JSON.parse(reportData.location);
@@ -239,19 +239,19 @@ app.post('/api/reports', upload.array('images', 10), optionalAuth, async (req, r
         console.warn('⚠️ Could not parse location JSON');
       }
     }
-    
+
     if (reportData.isAnonymous === 'true') reportData.isAnonymous = true;
     if (reportData.isAnonymous === 'false') reportData.isAnonymous = false;
-    
+
     if (reportData.latitude) reportData.latitude = parseFloat(reportData.latitude);
     if (reportData.longitude) reportData.longitude = parseFloat(reportData.longitude);
     if (reportData.aiConfidenceScore) reportData.aiConfidenceScore = parseFloat(reportData.aiConfidenceScore);
     if (reportData.upvotes) reportData.upvotes = parseInt(reportData.upvotes);
     if (reportData.downvotes) reportData.downvotes = parseInt(reportData.downvotes);
     if (reportData.views) reportData.views = parseInt(reportData.views);
-    
+
     const imageUrls = req.files?.map(file => `/uploads/${file.filename}`) || [];
-    
+
     let reportedBy = req.user?.userId;
     if (!reportedBy) {
       let anonymousUser = await User.findOne({ username: 'anonymous' });
@@ -301,7 +301,7 @@ app.post('/api/reports', upload.array('images', 10), optionalAuth, async (req, r
     res.status(201).json(report);
   } catch (error) {
     console.error(`❌ Error creating report:`, error.message);
-    
+
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
         const filePath = path.join(uploadsDir, file.filename);
@@ -310,7 +310,7 @@ app.post('/api/reports', upload.array('images', 10), optionalAuth, async (req, r
         });
       });
     }
-    
+
     res.status(500).json({ error: error.message });
   }
 });
@@ -649,7 +649,7 @@ app.get('/api/chat/conversations/:userId', async (req, res) => {
     const convs = await Conversation.find({ participants: req.params.userId })
       .populate('participants', 'username email role')
       .sort({ lastMessageAt: -1 });
-    
+
     const result = await Promise.all(convs.map(async (c) => {
       const unread = await ChatMessage.countDocuments({
         conversationId: c._id,
@@ -668,7 +668,7 @@ app.post('/api/chat/conversations', async (req, res) => {
     let conv = await Conversation.findOne({
       participants: { $all: [userId1, userId2] }
     }).populate('participants', 'username email role');
-    
+
     if (!conv) {
       conv = await new Conversation({
         participants: [userId1, userId2],
@@ -693,11 +693,11 @@ app.get('/api/chat/messages/:conversationId', async (req, res) => {
     const { since, userId } = req.query;
     const filter = { conversationId: req.params.conversationId };
     if (since) filter.createdAt = { $gt: new Date(since) };
-    
+
     const msgs = await ChatMessage.find(filter)
       .populate('senderId', 'username email')
       .sort({ createdAt: 1 });
-    
+
     if (userId) {
       await ChatMessage.updateMany(
         { conversationId: req.params.conversationId, senderId: { $ne: userId }, read: false },
@@ -770,7 +770,7 @@ setInterval(async () => {
   try {
     const now = new Date();
     const slas = await SLA.find({ slaStatus: { $ne: 'breached' } });
-    
+
     for (const sla of slas) {
       if (!sla.acknowledgedAt && now > sla.acknowledgeDeadline) {
         sla.slaStatus = 'breached';

@@ -10,7 +10,7 @@ interface ServerStatus {
 
 const AIStatus: React.FC = () => {
   const [servers, setServers] = useState<ServerStatus[]>([
-    { name: 'Backend', port: 5005, endpoint: '/api/health', status: 'checking' as const },
+    { name: 'Backend', port: 5000, endpoint: '/api/health', status: 'checking' as const },
     { name: 'AI Vision', port: 5007, endpoint: '/ai-vision/health', status: 'checking' as const },
     { name: 'Speech', port: 8000, endpoint: '/speech/health', status: 'checking' as const },
     { name: 'App', port: 3000, endpoint: '/health', status: 'checking' as const }

@@ -51,7 +51,12 @@ function App() {
     } catch { /* invalid */ }
     return null;
   });
-  const [showIntro, setShowIntro] = useState(() => !localStorage.getItem('introSeen'));
+  // Show the intro/home page whenever there is no active authenticated session,
+  // so visiting the URL never jumps straight to the login page.
+  const [showIntro, setShowIntro] = useState(() => {
+    const hasToken = !!localStorage.getItem('authToken') && !!localStorage.getItem('civicUser');
+    return !hasToken; // show intro for any unauthenticated visit
+  });
   const [showReportModal, setShowReportModal] = useState(false);
   const [currentHash, setCurrentHash] = useState(window.location.hash);
   const [searchTerm, setSearchTerm] = useState('');
