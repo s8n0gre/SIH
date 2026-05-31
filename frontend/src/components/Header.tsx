@@ -101,9 +101,9 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
               <div>
                 <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{user?.username || user?.name}</div>
                 <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                  {userRole === 'sys_admin' && <span className="badge badge-amber">Admin</span>}
-                  {userRole === 'department_admin' && <span className="badge badge-blue">Dept Admin</span>}
-                  {userRole === 'citizen' && <span className="badge badge-gray">Citizen</span>}
+                  {userRole === 'sys_admin' && <span className="badge badge-amber">{i18n.t('Admin')}</span>}
+                  {userRole === 'department_admin' && <span className="badge badge-blue">{i18n.t('Dept Admin')}</span>}
+                  {userRole === 'citizen' && <span className="badge badge-gray">{i18n.t('Citizen')}</span>}
                 </div>
               </div>
             </div>
@@ -136,7 +136,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
       {showImpersonateModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] backdrop-blur-sm backdrop-fade">
           <div className="rounded-2xl p-6 w-full max-w-md mx-4 max-h-96 overflow-y-auto modal-enter" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-strong)' }}>
-            <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Impersonate User</h3>
+            <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{i18n.t('Impersonate User')}</h3>
             <div className="space-y-2 mb-4">
               {users.map((u) => (
                 <button key={u._id} onClick={() => handleImpersonate(u.username)} className="w-full p-3 text-left rounded-xl transition-colors" style={{ border: '1px solid var(--border)', background: 'var(--bg-base)' }}
@@ -146,7 +146,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowImpersonateModal(false)} className="btn-secondary w-full justify-center">Cancel</button>
+            <button onClick={() => setShowImpersonateModal(false)} className="btn-secondary w-full justify-center">{i18n.t('Cancel')}</button>
           </div>
         </div>
       )}
@@ -157,7 +157,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] backdrop-blur-sm backdrop-fade">
           <div className="rounded-2xl p-6 w-full max-w-md mx-4 modal-enter" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-strong)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Settings</h3>
+              <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{i18n.t('Settings')}</h3>
               <button onClick={() => { setShowSettingsModal(false); }} className="p-1 rounded-lg transition-colors hover:bg-[var(--bg-elevated)]" style={{ color: 'var(--text-muted)' }}>
                 <X className="w-4 h-4" />
               </button>
@@ -169,7 +169,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
                 <span className="text-sm font-medium">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
               </button>
               <div>
-                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Language</label>
+                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>{i18n.t('Language')}</label>
                 <select onChange={(e) => { i18n.setLanguage(e.target.value); window.location.reload(); }} value={i18n.getCurrentLanguage()} className="w-full px-3 py-2 text-sm rounded-lg border outline-none transition-all" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                   {i18n.getLanguages().map(lang => (
                     <option key={lang.code} value={lang.code}>{lang.nativeName}</option>
@@ -177,24 +177,24 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Accessibility</label>
+                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>{i18n.t('Accessibility')}</label>
                 <div className="space-y-2">
                   <button onClick={() => { document.body.classList.toggle('high-contrast'); }} className="w-full text-left px-3 py-2 text-xs rounded-lg transition-colors" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')} onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}>
-                    High Contrast
+                    {i18n.t('High Contrast')}
                   </button>
                   <button onClick={() => { const size = parseInt(document.documentElement.style.fontSize || '100'); document.documentElement.style.fontSize = `${Math.min(size + 10, 150)}%`; }} className="w-full text-left px-3 py-2 text-xs rounded-lg transition-colors" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')} onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}>
-                    Increase Text Size
+                    {i18n.t('Increase Text Size')}
                   </button>
                   <button onClick={() => { document.body.classList.toggle('big-cursor'); }} className="w-full text-left px-3 py-2 text-xs rounded-lg transition-colors" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')} onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-elevated)')}>
-                    Big Cursor
+                    {i18n.t('Big Cursor')}
                   </button>
                 </div>
               </div>
             </div>
-            <button onClick={() => { setShowSettingsModal(false); }} className="btn-secondary w-full justify-center mt-4">Close</button>
+            <button onClick={() => { setShowSettingsModal(false); }} className="btn-secondary w-full justify-center mt-4">{i18n.t('Close')}</button>
           </div>
         </div>
       )}
@@ -204,7 +204,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ user, userRole, setUs
 
 const MenuButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void; accent?: string }> = ({ icon, label, onClick, accent }) => {
   const colors: Record<string, string> = { amber: 'var(--accent)', blue: 'var(--accent-blue)', green: 'var(--accent-green)', red: 'var(--accent-red)' };
-  const color = accent ? colors[accent] : 'var(--text-secondary)';
+  const color = accent && Object.prototype.hasOwnProperty.call(colors, accent) ? colors[accent] : 'var(--text-secondary)';
   return (
     <button onClick={onClick} className="w-full px-4 py-2.5 flex items-center gap-2.5 text-left transition-colors" style={{ color }}
       onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-elevated)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -261,7 +261,7 @@ const CommandSearch: React.FC<{ setSearchTerm: (val: string) => void; isOpen: bo
     setLoading(true);
     setSearchTerm(query);
     const timer = setTimeout(() => {
-      setResults(mockResults[activeFilter] || []);
+      setResults(activeFilter && Object.prototype.hasOwnProperty.call(mockResults, activeFilter) ? mockResults[activeFilter] : []);
       setLoading(false);
     }, 300);
     return () => clearTimeout(timer);
@@ -277,7 +277,7 @@ const CommandSearch: React.FC<{ setSearchTerm: (val: string) => void; isOpen: bo
         <div className="flex items-center gap-2 overflow-hidden">
           <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 transition-colors group-hover:text-[var(--accent)]" style={{ color: 'var(--text-faint)' }} />
           <span className="text-[var(--text-muted)] font-medium truncate">
-            Search clusters...
+            {i18n.t('Search clusters...')}
           </span>
         </div>
         <div className="hidden sm:flex items-center gap-1.5 px-1.5 py-0.5 rounded-md border text-[10px] font-bold tracking-widest uppercase opacity-40 group-hover:opacity-100 transition-opacity" style={{ borderColor: 'var(--border)', color: 'var(--text-faint)', background: 'var(--bg-panel)' }}>
@@ -318,7 +318,7 @@ const CommandSearch: React.FC<{ setSearchTerm: (val: string) => void; isOpen: bo
               {loading ? (
                 <div className="flex items-center justify-center gap-3 py-12" style={{ color: 'var(--text-muted)' }}>
                   <div className="w-5 h-5 border-3 border-current border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm font-bold uppercase tracking-widest">Infiltrating Database...</span>
+                  <span className="text-sm font-bold uppercase tracking-widest">{i18n.t('Infiltrating Database...')}</span>
                 </div>
               ) : results.length > 0 ? (
                 <div className="py-2">
@@ -332,7 +332,7 @@ const CommandSearch: React.FC<{ setSearchTerm: (val: string) => void; isOpen: bo
                           </div>
                           <div>
                             <p className="text-sm font-bold mb-0.5 transition-colors group-hover/item:text-[var(--accent-blue)]" style={{ color: 'var(--text-primary)' }}>{r.title}</p>
-                            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-faint)' }}>by {r.author} • {r.time}</p>
+                            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-faint)' }}>{i18n.t('by')} {r.author} • {r.time}</p>
                           </div>
                         </div>
                       )}
@@ -380,15 +380,15 @@ const CommandSearch: React.FC<{ setSearchTerm: (val: string) => void; isOpen: bo
             <div className="px-4 py-3 bg-black/5 dark:bg-white/5 flex items-center justify-between border-t" style={{ borderColor: 'var(--border)' }}>
                <div className="flex gap-4">
                   <div className="flex items-center gap-1.5">
-                    <kbd className="px-1.5 py-0.5 rounded border text-[10px] font-bold" style={{ background: 'var(--bg-panel)', borderColor: 'var(--border)', color: 'var(--text-faint)' }}>ESC</kbd>
-                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-40">Close</span>
+                    <kbd className="px-1.5 py-0.5 rounded border text-[10px] font-bold" style={{ background: 'var(--bg-panel)', borderColor: 'var(--border)', color: 'var(--text-faint)' }}>{i18n.t('ESC')}</kbd>
+                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-40">{i18n.t('Close')}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <kbd className="px-1.5 py-0.5 rounded border text-[10px] font-bold" style={{ background: 'var(--bg-panel)', borderColor: 'var(--border)', color: 'var(--text-faint)' }}>↵</kbd>
-                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-40">Select</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-40">{i18n.t('Select')}</span>
                   </div>
                </div>
-               <div className="text-[10px] font-bold uppercase tracking-widest opacity-30">LokSetu Engine v2.4</div>
+               <div className="text-[10px] font-bold uppercase tracking-widest opacity-30">{i18n.t('LokSetu Engine v2.4')}</div>
             </div>
           </div>
         </>,
@@ -445,7 +445,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, user, onLogout
                 <MapPin className="w-4 h-4" style={{ color: '#0d0f14' }} />
               </div>
               <span className="text-sm font-bold hidden sm:block" style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                LokSetu
+                {i18n.t('LokSetu')}
                 <span style={{ color: 'var(--accent)' }}>.</span>
               </span>
             </button>
@@ -491,9 +491,9 @@ const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, user, onLogout
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-blue-subtle)' }}>
                 <Shield className="w-5 h-5" style={{ color: 'var(--accent-blue)' }} />
               </div>
-              <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Administrative Access</h3>
+              <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{i18n.t('Administrative Access')}</h3>
             </div>
-            <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Enter admin credentials to elevate your privileges.</p>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>{i18n.t('Enter admin credentials to elevate your privileges.')}</p>
             <input
               type="password"
               value={elevatePassword}
@@ -503,8 +503,8 @@ const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, user, onLogout
               onKeyPress={e => { if (e.key === 'Enter') handleElevateRole(); }}
             />
             <div className="flex gap-3">
-              <button onClick={handleElevateRole} className="btn-primary flex-1 justify-center">Grant Access</button>
-              <button onClick={() => { setShowElevateModal(false); setElevatePassword(''); }} className="btn-secondary flex-1 justify-center">Cancel</button>
+              <button onClick={handleElevateRole} className="btn-primary flex-1 justify-center">{i18n.t('Grant Access')}</button>
+              <button onClick={() => { setShowElevateModal(false); setElevatePassword(''); }} className="btn-secondary flex-1 justify-center">{i18n.t('Cancel')}</button>
             </div>
           </div>
         </div>
