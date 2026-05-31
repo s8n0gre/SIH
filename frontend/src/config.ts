@@ -12,5 +12,5 @@ import { Capacitor } from '@capacitor/core';
  * local IP address.
  */
 export const API_BASE = Capacitor.isNativePlatform()
-    ? import.meta.env.VITE_API_URL || 'http://192.168.1.4:5005'
+    ? import.meta.env.VITE_API_URL || 'http://192.168.1.4:5001'
     : '';

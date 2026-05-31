@@ -162,3 +162,8 @@ backend/uploads/
 
 # Bolt config
 .bolt/
+
+# Local Dev / Backups / Clones
+mongodb/
+sih_clone/
+temp_clone/

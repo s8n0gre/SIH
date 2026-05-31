@@ -10,7 +10,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
         timeout: 120000,
@@ -24,14 +24,14 @@ export default defineConfig({
         proxyTimeout: 120000
       },
       '/speech': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
         timeout: 120000,
         proxyTimeout: 120000
       },
       '/health': {
-        target: 'http://localhost:5005',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false
       }
